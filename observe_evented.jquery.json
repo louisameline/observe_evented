@@ -1,0 +1,28 @@
+{
+  "name": "observe_evented",
+  "title": "Observe_evented",
+  "description": "Object.observe and Array.observe made easy",
+  "keywords": [
+    "array",
+    "object",
+    "observe",
+    "observer",
+    "ecmascript7"
+  ],
+  "version": "0.1.0",
+  "author": {
+    "name": "Louis AMELINE",
+    "url": "https://github.com/louisameline"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://opensource.org/licenses/MIT"
+    }
+  ],
+  "homepage": "https://github.com/louisameline/observe_evented",
+  "docs": "https://github.com/louisameline/observe_evented",
+  "dependencies": {
+    "jquery": ">=1.7"
+  }
+}
