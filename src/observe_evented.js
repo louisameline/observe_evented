@@ -134,7 +134,9 @@
 							event = {
 								name: idx,
 								object: object,
-								oldValue: value,
+								// value is seen as undefined if it was null, so
+								// we cast it again
+								oldValue: value || null,
 								type: 'remove'
 							};
 						
@@ -173,7 +175,7 @@
 						// in the case of an array, the property name is the index
 						if(isArray){
 							
-							var newIndex = event.name;
+							var movingIndex = event.name;
 							
 							// let's iterate on the following events
 							for(var j = i+1; j < events.length; j++){
@@ -182,18 +184,23 @@
 								
 								// the addition/removal of a value in the array before
 								// our value of interest modifies its index
-								if(event.name > e.name){
+								if(movingIndex > e.name){
 									
 									if(e.type === 'add'){
-										newIndex++;
+										movingIndex++;
 									}
 									else if(e.type === 'remove'){
-										newIndex--;
+										movingIndex--;
 									}
 								}
-								else if(event.name === e.name){
+								else if(movingIndex === e.name){
 									
-									if(e.type === 'update' || e.type === 'remove'){
+									if(e.type === 'add'){
+										// the addition of a value at our index pushes it
+										// one step further in the array
+										movingIndex++;
+									}
+									else if(e.type === 'update' || e.type === 'remove'){
 										
 										event.value = e.oldValue;
 										
@@ -206,7 +213,7 @@
 							// if no later change happened during the microtask, get the
 							// value from the current state object
 							if(event.value === undefined){
-								event.value = object[newIndex];
+								event.value = object[movingIndex];
 							}
 						}
 						else {

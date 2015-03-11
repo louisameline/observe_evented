@@ -37,7 +37,7 @@ $observer.on(eventType, function(event){
 Unobserve:
 
 ```
-var $observer.unobserve();
+$observer.unobserve();
 ```
 
 OR
@@ -350,7 +350,7 @@ $observer
 	});
 
 basket[0] = 'apple';
-basket.push('apple');
+basket.push('pear');
 basket.unshift('banana', 'cherry');
 // delete should be avoided on arrays, it's only for the example
 delete basket[0];
@@ -360,82 +360,49 @@ basket.splice(0, 1, 'strawberry');
 ...will log:
 
 ```
+// note: "object" has been collapsed, its value is ["strawberry", "cherry", "apple", "pear"] all along
+
 [
   {
     "name": 0,
-    "object": [
-      "strawberry",
-      "cherry",
-      "apple",
-      "apple"
-    ],
-    "type": "add",
-    "value": "banana"
-  },
-  {
-    "name": 1,
-    "object": [
-      "strawberry",
-      "cherry",
-      "apple",
-      "apple"
-    ],
+    "object": [...],
     "type": "add",
     "value": "apple"
   },
   {
+    "name": 1,
+    "object": [...],
+    "type": "add",
+    "value": "pear"
+  },
+  {
     "name": 0,
-    "object": [
-      "strawberry",
-      "cherry",
-      "apple",
-      "apple"
-    ],
+    "object": [...],
     "type": "add",
     "value": "banana"
   },
   {
     "name": 1,
-    "object": [
-      "strawberry",
-      "cherry",
-      "apple",
-      "apple"
-    ],
+    "object": [...],
     "type": "add",
     "value": "cherry"
   },
   {
     "type": "update",
-    "object": [
-      "strawberry",
-      "cherry",
-      "apple",
-      "apple"
-    ],
+    "object": [...],
     "name": 0,
     "oldValue": "banana",
     "value": null
   },
   {
     "name": 0,
-    "object": [
-      "strawberry",
-      "cherry",
-      "apple",
-      "apple"
-    ],
+    "object": [...],
     "oldValue": null,
     "type": "remove"
   },
   {
     "name": 0,
-    "object": [
-      "strawberry",
-      "cherry",
-      "apple",
-      "apple"
-    ],
+    "object": [...],
     "type": "add",
     "value": "strawberry"
   }
@@ -445,59 +412,34 @@ basket.splice(0, 1, 'strawberry');
 [
   {
     "type": "splice",
-    "object": [
-      "strawberry",
-      "cherry",
-      "apple",
-      "apple"
-    ],
+    "object": [...],
     "index": 0,
     "removed": [],
     "addedCount": 1
   },
   {
     "type": "splice",
-    "object": [
-      "strawberry",
-      "cherry",
-      "apple",
-      "apple"
-    ],
+    "object": [...],
     "index": 1,
     "removed": [],
     "addedCount": 1
   },
   {
     "type": "splice",
-    "object": [
-      "strawberry",
-      "cherry",
-      "apple",
-      "apple"
-    ],
+    "object": [...],
     "index": 0,
     "removed": [],
     "addedCount": 2
   },
   {
     "type": "delete",
-    "object": [
-      "strawberry",
-      "cherry",
-      "apple",
-      "apple"
-    ],
+    "object": [...],
     "name": "0",
     "oldValue": "banana"
   },
   {
     "type": "splice",
-    "object": [
-      "strawberry",
-      "cherry",
-      "apple",
-      "apple"
-    ],
+    "object": [...],
     "index": 0,
     "removed": [
       null
