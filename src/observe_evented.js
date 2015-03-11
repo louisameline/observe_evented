@@ -166,7 +166,9 @@
 					
 					var event = events[i];
 					
-					if(event.value === undefined){
+					if(		(event.type === 'add' || event.type === 'update')
+						&&	event.value === undefined
+					){
 						
 						// in the case of an array, the property name is the index
 						if(isArray){

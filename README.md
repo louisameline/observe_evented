@@ -16,8 +16,12 @@ You can read more about it [here](http://www.html5rocks.com/en/tutorials/es7/obs
 General usage
 -------------------------
 
+Observe :
+
 ```
 $.observe(object [, name] [, options] [, callback]);
+
+// callback gets an event as first argument
 ```
 
 OR
@@ -28,6 +32,18 @@ var $observer = $.observe(object [, name] [, options]);
 $observer.on(eventType, function(event){
 	console.log(event);
 });
+```
+
+Unobserve:
+
+```
+var $observer.unobserve();
+```
+
+OR
+
+```
+$.unobserve(object);
 ```
 
 Events are generally in the following form:
@@ -208,7 +224,7 @@ basket.push('strawberry', 'coconut');
 basket.splice(0, 2, 'cherry', 'mango');
 ```
 
-A special note about the `delete basket[0];` command : as this effectively sets the value of `basket[0]` to `null` and does not actually remove the cell at index 0, it is an `update` event that will be triggered with `event.value = null`. Use the splice method to actually remove values from an array and stop using delete with arrays.
+A special note about the `delete basket[0];` command : as this effectively sets the value of `basket[0]` to `null` and does not actually remove the cell at index 0, it is an `update` event that will be triggered with `event.value = null`. Use the `splice` method to actually remove values from an array and consider stop using `delete` with arrays.
 
 Please note that the second argument to $.observe, `name`, while *technically* working on arrays too, will probably not produce the result you would expect and will be useless to most people.
 
@@ -294,13 +310,13 @@ The events sent by Observe_evented can be of the following type :
 Options
 -------------------------
 
-An object of options can optionaly be provided as the third argument in the call to $.observe.
+An object of options can optionaly be provided as the third argument in the call to `$.observe`.
 
-`options.dropValues` Observe_evented sets an event.value property on events which may be useful to you, particularly while debugging. This has a (generally) minor performance cost though that you can choose to avoid, should you not need that property. Set to true to not generate the event.value property and save some processing cycles.
+`options.dropValues` Observe_evented sets an `event.value` property on events which may be useful to you, particularly while debugging. This has a (generally) minor performance cost though that you can choose to avoid, should you not need that property. Set to true to not generate the `event.value` property and save some processing cycles. Default: `false`.
 
-`options.eventTypes` An array of enabled event types. Any event whose type is not included in this array will not be triggered. If you want to get events from another type than the standard ones (namely because you used notifiers), you will have to set up this option. Default: null.
+`options.eventTypes` An array of enabled event types. Any event whose type is not included in this array will not be triggered. If you want to get events from another type than the standard ones (namely because you used notifiers), you will have to set up this option. Default: `null`.
 
-The `$.observe.defaultOptions` method lets you modify the default options for all future call:
+The `$.observe.defaultOptions` method lets you modify the default options for all future calls:
 
 ```
 $.observe.defaultOptions({
@@ -312,7 +328,7 @@ $.observe.defaultOptions({
 Advanced : Manage the events in batches
 -------------------------
 
-As you know, events are sent asynchronously and in batches by Object.observe. If you didn't, read the notice section below as it's something you must understand to avoid surprises.
+As you know, events are sent asynchronously and in batches by Object.observe. If you didn't know, read the notice section below as it's something you must understand to avoid surprises.
 
 So, sometimes you might find useful to get all events at once in your callback function, instead of having it called with only one event at a time. No problem.
 
@@ -349,29 +365,9 @@ basket.splice(0, 1, 'strawberry');
     "name": 0,
     "object": [
       "strawberry",
-      "grape",
-      "pear"
-    ],
-    "type": "add",
-    "value": "apple"
-  },
-  {
-    "type": "update",
-    "object": [
-      "strawberry",
-      "grape",
-      "pear"
-    ],
-    "name": 0,
-    "oldValue": "apple",
-    "value": "banana"
-  },
-  {
-    "name": 0,
-    "object": [
-      "strawberry",
-      "grape",
-      "pear"
+      "cherry",
+      "apple",
+      "apple"
     ],
     "type": "add",
     "value": "banana"
@@ -380,8 +376,31 @@ basket.splice(0, 1, 'strawberry');
     "name": 1,
     "object": [
       "strawberry",
-      "grape",
-      "pear"
+      "cherry",
+      "apple",
+      "apple"
+    ],
+    "type": "add",
+    "value": "apple"
+  },
+  {
+    "name": 0,
+    "object": [
+      "strawberry",
+      "cherry",
+      "apple",
+      "apple"
+    ],
+    "type": "add",
+    "value": "banana"
+  },
+  {
+    "name": 1,
+    "object": [
+      "strawberry",
+      "cherry",
+      "apple",
+      "apple"
     ],
     "type": "add",
     "value": "cherry"
@@ -390,8 +409,9 @@ basket.splice(0, 1, 'strawberry');
     "type": "update",
     "object": [
       "strawberry",
-      "grape",
-      "pear"
+      "cherry",
+      "apple",
+      "apple"
     ],
     "name": 0,
     "oldValue": "banana",
@@ -401,42 +421,23 @@ basket.splice(0, 1, 'strawberry');
     "name": 0,
     "object": [
       "strawberry",
-      "grape",
-      "pear"
+      "cherry",
+      "apple",
+      "apple"
     ],
-    "type": "remove",
-    "value": "strawberry"
-  },
-  {
-    "name": 1,
-    "object": [
-      "strawberry",
-      "grape",
-      "pear"
-    ],
-    "oldValue": "cherry",
-    "type": "remove",
-    "value": "pear"
+    "oldValue": null,
+    "type": "remove"
   },
   {
     "name": 0,
     "object": [
       "strawberry",
-      "grape",
-      "pear"
+      "cherry",
+      "apple",
+      "apple"
     ],
     "type": "add",
     "value": "strawberry"
-  },
-  {
-    "name": 1,
-    "object": [
-      "strawberry",
-      "grape",
-      "pear"
-    ],
-    "type": "add",
-    "value": "grape"
   }
 ]
 
@@ -446,29 +447,33 @@ basket.splice(0, 1, 'strawberry');
     "type": "splice",
     "object": [
       "strawberry",
-      "grape",
-      "pear"
+      "cherry",
+      "apple",
+      "apple"
     ],
     "index": 0,
     "removed": [],
     "addedCount": 1
   },
   {
-    "type": "update",
+    "type": "splice",
     "object": [
       "strawberry",
-      "grape",
-      "pear"
+      "cherry",
+      "apple",
+      "apple"
     ],
-    "name": "0",
-    "oldValue": "apple"
+    "index": 1,
+    "removed": [],
+    "addedCount": 1
   },
   {
     "type": "splice",
     "object": [
       "strawberry",
-      "grape",
-      "pear"
+      "cherry",
+      "apple",
+      "apple"
     ],
     "index": 0,
     "removed": [],
@@ -478,8 +483,9 @@ basket.splice(0, 1, 'strawberry');
     "type": "delete",
     "object": [
       "strawberry",
-      "grape",
-      "pear"
+      "cherry",
+      "apple",
+      "apple"
     ],
     "name": "0",
     "oldValue": "banana"
@@ -488,15 +494,15 @@ basket.splice(0, 1, 'strawberry');
     "type": "splice",
     "object": [
       "strawberry",
-      "grape",
-      "pear"
+      "cherry",
+      "apple",
+      "apple"
     ],
     "index": 0,
     "removed": [
-      null,
-      "cherry"
+      null
     ],
-    "addedCount": 2
+    "addedCount": 1
   }
 ]
 ```
