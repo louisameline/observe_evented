@@ -304,7 +304,7 @@ basket.push('banana');
 Event types
 -------------------------
 
-The events sent by Observe_evented can be of the following type :
+The events sent by Observe_evented can be of the following types :  
 `add`, `update`, `remove`, `reconfigure`, `setPrototype`
 
 Options
