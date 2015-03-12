@@ -10,8 +10,9 @@
 (function($){
 	
 	var defaultOptions = {
+			dropValues: false,
 			eventTypes: null,
-			dropValues: false
+			minimalEvents: false
 		},
 		_observe,
 		observers = [],
@@ -88,7 +89,6 @@
 		// setup options
 		options = $.extend(true, {}, defaultOptions, options);
 		
-		
 		// SETUP THE OBSERVER AND THE EVENT EMITTER
 		
 		var observer = function(changes){
@@ -130,7 +130,9 @@
 					
 					$.each(change.removed, function(j, value){
 						
-						var idx = change.index + j,
+						// we don't set 'change.index + j' because the indices
+						// actually decrement after every removal
+						var idx = change.index,
 							event = {
 								name: idx,
 								object: object,
@@ -240,6 +242,188 @@
 							}
 						}
 					}
+				}
+			}
+			
+			// note : to do this, we compute the list of events, we do not keep
+			// an older version of the array in memory for comparison
+			if(options.minimalEvents){
+				
+				// let's regroup the changes by targeted value. This will
+				// eventually be an array.
+				var eventsByTarget;
+				
+				if(!isArray){
+					
+					eventsByTarget = {};
+					
+					$.each(events, function(i, event){
+						
+						if(!eventsByTarget[event.name]){
+							eventsByTarget[event.name] = [];
+						}
+						
+						eventsByTarget[event.name].push(i);
+					});
+					
+					// let's just keep the event indices in the same format as
+					// arrays : [name, eventIndices] (see below)
+					eventsByTarget = $.map(eventsByTarget, function(v, k){
+						return [[k, v]];
+					});
+				}
+				else {
+					// in the case of arrays, we cannot regroup changes by index
+					// out of the box since indices can fluctuate. Let's create
+					// a small algorithm that will track which is which.
+					
+					// this will store the consecutive indices of a value that
+					// had an event and the event type. At the end of the loop,
+					// the last index will be the current one (-1 for removed
+					// values). It's in the form:
+					// [[indicesArray, eventIndices], ...]
+					eventsByTarget = [];
+					
+					for(var i = 0; i < events.length; i++){
+						
+						var event = events[i],
+							// the index of the value of eventsByTarget that
+							// contains the information about the target of
+							// this event
+							ebt_index = null;
+						
+						// check if this value is already tracked.
+						// A new value cannot be yet.
+						if(event.type !== 'add'){
+							
+							$.each(eventsByTarget, function(j, targetInfo){
+								
+								if(event.name === targetInfo[0][targetInfo[0].length - 1]){
+									ebt_index = j;
+									return false;
+								}
+							});
+						}
+						
+						// if not tracked, track it
+						if(ebt_index === null){
+							ebt_index = eventsByTarget.length;
+							eventsByTarget.push([[], []]);
+						}
+						
+						// additions and removals force us to register index changes
+						if(event.type === 'add' || event.type === 'remove'){
+							
+							$.each(eventsByTarget, function(j, targetInfo){
+								
+								if(targetInfo[0].length){
+								
+									var lastIndex = targetInfo[0][targetInfo[0].length - 1];
+									
+									if(event.name < lastIndex){
+										
+										if(event.type === 'add'){
+											targetInfo[0].push(lastIndex + 1);
+										}
+										else {
+											targetInfo[0].push(lastIndex - 1);
+										}
+									}
+									else if(event.name === lastIndex){
+									
+										if(event.type === 'add'){
+											targetInfo[0].push(lastIndex + 1);
+										}
+									}
+								}
+							});
+						}
+						
+						// we are now able to save the new index for our value
+						if(		event.type === 'add'
+							// if the value was untracked
+							||	eventsByTarget[ebt_index][0].length === 0
+						){
+							eventsByTarget[ebt_index][0].push(event.name);
+						}
+						else if(event.type === 'remove'){
+							// this prevents the value from being picked up in
+							// next iterations and be mistaken for a current value
+							eventsByTarget[ebt_index][0].push(-1);
+						}
+						
+						// and store the event
+						eventsByTarget[ebt_index][1].push(i);
+					}
+					
+					// keep only the last index for each event index list
+					eventsByTarget = $.map(eventsByTarget, function(val){
+						val[0] = val[0].pop();
+						return [val];
+					});
+				}
+				
+				// ready to compute
+				var removableEventIndices = [];
+				$.each(eventsByTarget, function(i, target){
+					
+					var name = target[0],
+						eventIndices = target[1];
+					
+					var lastEvent = events[eventIndices[eventIndices.length - 1]];
+					
+					// if we know that the value was eventually removed
+					if(lastEvent.type === 'remove'){
+					
+						// if there is only one remove event, nothing to do
+						if(eventIndices.length > 1){
+							
+							// if the removed value had actually been added to begin
+							// with, any events about it can be ignored
+							if(events[eventIndices[0]].type === 'add'){
+								
+								$.each(eventIndices, function(j, index){
+									removableEventIndices.push(index);
+								});
+							}
+							else {
+								
+								// otherwise let's just remember that it was removed
+								for(var j = 0; j < eventIndices.length - 1; j++){
+									removableEventIndices.push(eventIndices[j]);
+								}
+							}
+						}
+					}
+					// otherwise, the only thing we are interested in is whether
+					// the value already existed or not before all events
+					else {
+						
+						// the first event tells us that, so we keep it solely
+						for(var j = 1; j < eventIndices.length; j++){
+							removableEventIndices.push(eventIndices[j]);
+						}
+						
+						// for arrays, let's update its name so it reflects the
+						// current index of the value
+						if(isArray){
+							events[eventIndices[0]].name = name;
+						}
+					}
+				});
+				
+				// delete events
+				events = $.grep(events, function(val, index){
+					return $.inArray(index, removableEventIndices) === -1;
+				});
+				
+				// for the remaining events, add the value property for consistency
+				if(!options.dropValues){
+					$.each(events, function(i, event){
+						if(event.type === 'add' || event.type === 'update'){
+							event.value = object[event.name];
+						}
+					});
 				}
 			}
 			

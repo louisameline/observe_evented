@@ -13,20 +13,22 @@ Object.observe is a proposed feature in the draft of ECMAScript 7.
 As the standard itself may still evolve, this library may change accordingly.
 You can read more about it [here](http://www.html5rocks.com/en/tutorials/es7/observe/).  
 
+NOTE: examples on this page may not produce the same results if a shim is used instead of a natively compatible browser.
+
 General usage
 -------------------------
 
-Observe :
+OBSERVE :
 
-```
+```javascript
+// callback is called at each change with a single event as first argument
+
 $.observe(object [, name] [, options] [, callback]);
-
-// callback gets an event as first argument
 ```
 
-OR
+or
 
-```
+```javascript
 var $observer = $.observe(object [, name] [, options]);
 
 $observer.on(eventType, function(event){
@@ -34,21 +36,21 @@ $observer.on(eventType, function(event){
 });
 ```
 
-Unobserve:
+UNOBSERVE:
 
-```
+```javascript
 $observer.unobserve();
 ```
 
-OR
+or
 
-```
+```javascript
 $.unobserve(object);
 ```
 
-Events are generally in the following form:
+EVENTS are generally in the following form:
 
-```
+```javascript
 {
 	name: PropertyNameOrIndexOfChangedValue,
 	object: observedObject,
@@ -63,7 +65,7 @@ Observe a whole object
 
 Let's configure our observer like this:
 
-```
+```javascript
 var basket = {};
 
 $.observe(basket, function(event){
@@ -110,7 +112,7 @@ delete basket.fruit;
 
 Note that this is exactly equivalent to :
 
-```
+```javascript
 var basket = {};
 
 $.observe(basket)
@@ -142,15 +144,13 @@ basket.fruit = 'apple';
 basket.fruit = 'strawberry';
 // triggers a remove event
 delete basket.fruit;
-// this property does not exist : no events triggered
-delete basket.vegetable;
 ```
 
 For clarity, we'll use this notation in the rest of examples.
 
 Side note : if you know your jQuery, you know you can also write:
 
-```
+```javascript
 $.observe(basket).on('add update', function(event){
 	console.log('A property was added or updated');
 });
@@ -162,14 +162,14 @@ Observe a specific property of an object
 Quite often you'll be interested in the changes of a specific property of an array.
 That's when you should use the second parameter of $.observe:
 
-```
+```javascript
 var basket = {};
 
-var $observer = $.observe(basket, fruit);
+var $observer = $.observe(basket, 'fruit');
 
 $observer
 	.on('add', function(event){
-		console.log('The fruit property was add to the object');
+		console.log('The fruit property was added to the object');
 	})
 	.on('update', function(event){
 		console.log('The fruit property had a change of value');
@@ -188,7 +188,7 @@ Observe an array
 
 Pretty much the same as observing an object.
 
-```
+```javascript
 var basket = [];
 
 $.observe(basket)
@@ -201,8 +201,8 @@ $.observe(basket)
 	.on('update', function(event){
 		console.log(
 			'At index ' + event.name +
-			', the value was updated from the ' + event.oldValue +
-			' to the ' + event.value
+			', the value was updated from ' + event.oldValue +
+			' to ' + event.value
 		);
 	})
 	.on('remove', function(event){
@@ -217,7 +217,7 @@ basket[0] = 'apple';
 // triggers an update event
 basket[0] = 'pear';
 // triggers an add event
-basket.push('banana)';
+basket.push('banana');
 // triggers two add events
 basket.push('strawberry', 'coconut');
 // triggers two remove events and two add events
@@ -231,23 +231,31 @@ Please note that the second argument to $.observe, `name`, while *technically* w
 Observe multiple objects or arrays with a single function
 -------------------------
 
-The easy way for this is to specify your handler as an argument to $.observe:
+Just use a single handler with multiple observers:
 
-```
+```javascript
 var basket1 = [],
 	basket2 = {},
 	myFunction = function(event){
 		if(event.type === 'add'){
-			
 			var nb = $.isArray(event.object) ? 1 : 2;
-			
-			console.log(
-				'A value was added to one of the baskets ! ' +
-				'Actually it was basket number ' + nb + ' !'
-			);
+			console.log('A ' + event.value + ' was added to basket number ' + nb + ' ! ');
 		}
 	};
 
+var $observer1 = $.observe(basket1),
+	$observer2 = $.observe(basket2);
+
+$observer1.on('add', myFunction);
+$observer2.on('add', myFunction);
+
+basket1.push('peach');
+basket2.fruit = 'watermellon';
+```
+
+Or written with the callback argument syntax:
+
+```javascript
 $.observe(basket1, myFunction);
 $.observe(basket2, myFunction);
 ```
@@ -255,7 +263,7 @@ $.observe(basket2, myFunction);
 Unobserve : stop a specific observer
 -------------------------
 
-```
+```javascript
 var basket = [];
 
 var $observer = $.observe(basket);
@@ -280,16 +288,18 @@ basket.push('banana');
 Unobserve : stop all observers on an object or array
 -------------------------
 
-```
+```javascript
 var basket = [];
 
-// create two observers on the same array
-var $observer1 = $.observe(basket, function(event){
-		console.log('A: an ' + event.type + ' event was triggered');
-	}),
-	$observer2 = $.observe(basket, function(event){
-		console.log('B: an ' + event.type + ' event was triggered');
-	});
+// create two observers on the same array (just for the example)
+
+$.observe(basket).on('add', function(event){
+	console.log('A: a value was added to basket');
+});
+
+$.observe(basket).on('add', function(event){
+	console.log('B: a value was added to basket');
+});
 
 // triggers two add events, one in each observer
 basket.push('apple');
@@ -304,31 +314,87 @@ basket.push('banana');
 Event types
 -------------------------
 
-The events sent by Observe_evented can be of the following types :  
-`add`, `update`, `remove`, `reconfigure`, `setPrototype`
+By default, the events sent by Observe_evented can be of the following types :  
+`add`, `update`, `remove`, `batch`, `rawBatch`, `reconfigure`, `setPrototype`  
+Notifiers also let you create more event types (read the article linked at the top of this page).
 
-Options
+Options : optimize the results
 -------------------------
 
 An object of options can optionaly be provided as the third argument in the call to `$.observe`.
 
-`options.dropValues` Observe_evented sets an `event.value` property on events which may be useful to you, particularly while debugging. This has a (generally) minor performance cost though that you can choose to avoid, should you not need that property. Set to true to not generate the `event.value` property and save some processing cycles. Default: `false`.
+Before explaining the options, note that Observe_evented :  
+- returns by default all events that happened on the object/array you observe,
+- adds meaningful `event.value` properties that help you understand what happened all the way.
+
+While this can be interesting in some cases and while debugging, you might want to work differently. The following options are here for that :
+
+`options.dropValues` Since setting the `event.value` properties has a (generally) minor performance cost, you can choose not to generate them if you don't need them. Default: `false`.
+
+`options.minimalEvents` Set this option to `true` to get only the minimum number of events nessary to transition from the object/array as it was before modifications to its current state. Example :
+
+```javascript
+var basket = { fruit: 'apple' };
+
+var $observer = $.observe(basket, { minimalEvents: true });
+
+$observer
+	.on('add', function(event){
+		console.log(
+			'A property "' + event.name + '" was created, ' +
+			'its value is "' + event.value + '"'
+		);
+	})
+	.on('update', function(event){
+		console.log(
+			'The property "' + event.name + '" was updated, ' +
+			'its value is "' + event.value + '"'
+		);
+	})
+	.on('remove', function(event){
+		console.log('The property "' + event.name + '" was deleted');
+	});
+
+basket.fruit = 'banana';
+basket.fruit = 'mango';
+basket.fruit = 'cherry';
+basket.vegetable = 'carrot';
+basket.vegetable = 'pea';
+basket.meat = 'pork';
+basket.meat = 'chicken';
+delete basket.meat;
+
+// Logged :
+//
+// The property "fruit" was updated, its value is "cherry"
+// A property "vegetable" was created, its value is "pea"
+```
+
+As you can see, Observe_evented sends events as if the array went directly from its original state to its final one, that is to say :  
+from `{ fruit: 'apple' }` to `{ fruit: 'cherry', vegetable: 'pea' }`
+
+No events were sent for the intermediary states of `basket.fruit` and `basket.vegetable`. Since `basket.meat` does exist before the modifications nor after, no events are sent about that either.
+
+Other options
+-------------------------
 
 `options.eventTypes` An array of enabled event types. Any event whose type is not included in this array will not be triggered. If you want to get events from another type than the standard ones (namely because you used notifiers), you will have to set up this option. Default: `null`.
 
-The `$.observe.defaultOptions` method lets you modify the default options for all future calls:
+The `$.observe.defaultOptions` method lets you modify the default options for all future calls, like for example:
 
-```
+```javascript
 $.observe.defaultOptions({
 	dropValues: true,
-	eventTypes: ['add', 'update', 'remove']
+	eventTypes: ['add']
 });
+
+// all observers will now only emit 'add' events without `event.value` being set.
 ```
 
 Advanced : Manage the events in batches
 -------------------------
 
-As you know, events are sent asynchronously and in batches by Object.observe. If you didn't know, read the notice section below as it's something you must understand to avoid surprises.
+As you know, events are sent asynchronously and in batches by the browser to Observe_evented. If you didn't know, read the notice section below as it's something you must understand to avoid surprises.
 
 So, sometimes you might find useful to get all events at once in your callback function, instead of having it called with only one event at a time. No problem.
 
@@ -336,7 +402,7 @@ There are two options available : get the batch of atomic events computed by Obs
 
 You can get these respectively by listening to `batch` and `rawBatch` events.
 
-```
+```javascript
 var basket = [];
 
 var $observer = $.observe(basket);
@@ -354,13 +420,13 @@ basket.push('pear');
 basket.unshift('banana', 'cherry');
 // delete should be avoided on arrays, it's only for the example
 delete basket[0];
-basket.splice(0, 1, 'strawberry');
+basket.splice(0, 2, 'strawberry');
 ```
 
 ...will log:
 
-```
-// note: "object" has been collapsed, its value is ["strawberry", "cherry", "apple", "pear"] all along
+```javascript
+// note: "object" has been collapsed, its value is ["strawberry", "apple", "pear"] all along
 
 [
   {
@@ -403,11 +469,16 @@ basket.splice(0, 1, 'strawberry');
   {
     "name": 0,
     "object": [...],
+    "oldValue": "cherry",
+    "type": "remove"
+  },
+  {
+    "name": 0,
+    "object": [...],
     "type": "add",
     "value": "strawberry"
   }
 ]
-
 
 [
   {
@@ -442,7 +513,8 @@ basket.splice(0, 1, 'strawberry');
     "object": [...],
     "index": 0,
     "removed": [
-      null
+      null,
+      "cherry"
     ],
     "addedCount": 1
   }
@@ -467,11 +539,11 @@ The events will be sent *after* all commands in the current microtask have been 
 
 This means that when you do:
 
-```
+```javascript
 var basket = { fruit: 'apple' };
 
 $.observe(basket, 'fruit').on('update', function(event){
-	console.log('The fruit property has been updated, its value changed to ' + event.value + '.');
+	console.log('The fruit property was updated, its value changed to ' + event.value + '.');
 	console.log('But its real current value is ' + basket[event.name] + '.');
 });
 
@@ -482,16 +554,16 @@ basket.fruit = 'strawberry';
 
 ...the following will be logged:
 
-```
-The fruit property has been updated, its value changed to pear.
+```javascript
+The fruit property was updated, its value changed to pear.
 But its real current value is strawberry.
-The fruit property has been updated, its value changed to grape.
+The fruit property was updated, its value changed to grape.
 But its real current value is strawberry.
-The fruit property has been updated, its value changed to strawberry.
+The fruit property was updated, its value changed to strawberry.
 But its real current value is strawberry.
 ```
 
-That also explains why `event.object` reflects the state of the object after all changes have been made.
+That also explains why `event.object` reflects the state of the object as it is after all changes have been made.
 
 For more information, read the article linked at the top of this page.
 
