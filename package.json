@@ -1,8 +1,27 @@
 {
 	"name": "observe_evented",
 	"version": "0.1.0",
+	"description": "Object.observe and Array.observe made easy",
+	"author": {
+		"name": "Louis AMELINE",
+		"url": "https://github.com/louisameline"
+	},
 	"devDependencies": {
 		"grunt-contrib-uglify": "0.8.0",
 		"grunt": "~0.4.5"
-	}
+	},
+	"keywords": [
+		"array",
+		"object",
+		"observe",
+		"observer",
+		"ecmascript7",
+		"jquery-plugin",
+		"ecosystem:jquery"
+	],
+	"repository": "https://github.com/louisameline/observe_evented",
+	"bugs": {
+		"url" : "https://github.com/louisameline/observe_evented/issues"
+	},
+	"license": "MIT"
 }
