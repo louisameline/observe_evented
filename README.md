@@ -3,7 +3,7 @@ Observe_evented
 
 A Javascript class that makes Array.observe and Object.observe very easy to use.
 
-Observe_evented's specialty is to split the batch of changes returned by the native API into atomic and consistent easy-to-handle events. Test it on <a href="http://jsfiddle.net/d9w3uaav/">this jsFiddle page</a>.
+Observe_evented's specialty is to split the batch of changes returned by the native API into atomic and consistent easy-to-handle events. Test it on <a href="http://jsfiddle.net/d9w3uaav/1/">this jsFiddle page</a>.
 
 This library requires :
 - jQuery 1.7+
@@ -316,8 +316,10 @@ basket.push('banana');
 Event types
 -------------------------
 
-By default, the events sent by Observe_evented can be of the following types :  
-`add`, `update`, `remove`, `batch`, `rawBatch`, `reconfigure`, `setPrototype`  
+By default, the events sent by Observe_evented can be of the following types :
+
+`add`, `update`, `remove`, `batch`, `rawBatch`, `reconfigure`, `setPrototype`
+
 Notifiers also let you create more event types (read the article linked at the top of this page).
 
 Options : optimize the results
@@ -381,6 +383,8 @@ Other options
 -------------------------
 
 `options.eventTypes` An array of enabled event types. Any event whose type is not included in this array will not be triggered. If you want to get events from another type than the standard ones (namely because you use notifiers), you will have to set up this option. Default: `null`.
+
+`options.noArrayUpdate` Semantically, updating a value in an array is not the same thing as removing it and adding its replacement at the same index. However, the end result is the same. Furthermore, a browser using a shim won't even be able to make the difference. For the sake of consistency, this is why you may set this option to `true` to remove any `update` events triggered on an array and replace them by a `remove` event followed by an `add` event. Default: `false`
 
 `$.observe.defaultOptions` This method lets you modify the default options for all future calls, like for example:
 

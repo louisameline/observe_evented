@@ -3,7 +3,7 @@
 /* 
  * Object.observe and Array.observe made easy.
  * Developped by Louis AMELINE under the MIT license http://opensource.org/licenses/MIT
- * Released on 2015-03-11
+ * Released on 2015-03-12
  * 
  * https://github.com/louisameline/observe_evented
  */
@@ -12,7 +12,8 @@
 	var defaultOptions = {
 			dropValues: false,
 			eventTypes: null,
-			minimalEvents: false
+			minimalEvents: false,
+			noArrayUpdate: false
 		},
 		_observe,
 		observers = [],
@@ -99,10 +100,11 @@
 				if(change.type !== 'splice'){
 					
 					// change is immutable, let's copy it
-					var event = $.extend(true, {}, change);
+					var event = $.extend(true, {}, change),
+						arr = [];
 					
 					if(isArray){
-						// O.o returns the index as a string !?
+						// O.o returns the index as a string !
 						event.name = parseInt(event.name);
 					}
 					
@@ -120,7 +122,30 @@
 						}
 					}
 					
-					events.push(event);
+					if(		isArray
+						&&	event.type === 'update'
+						&& options.noArrayUpdate
+					){
+						// forge two add and remove events events
+						arr.push(
+							{
+								object: object,
+								name: event.name,
+								oldValue: event.oldValue,
+								type: 'remove'
+							},
+							{
+								object: object,
+								name: event.name,
+								type: 'add'
+							}
+						);
+					}
+					else {
+						arr.push(event);
+					}
+					
+					Array.prototype.push.apply(events, arr);
 				}
 				// the change is a splice : the object is an array and several
 				// changes may have been made with a single function call (push,
