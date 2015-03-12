@@ -21,7 +21,8 @@ General usage
 OBSERVE :
 
 ```javascript
-// callback is called at each change with a single event as first argument
+// callback is called at each change with a single event as first argument.
+// `object` can be an Array or an Object.
 
 $.observe(object [, name] [, options] [, callback]);
 ```
