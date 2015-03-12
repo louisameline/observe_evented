@@ -3,7 +3,7 @@ Observe_evented
 
 A Javascript class that makes Array.observe and Object.observe very easy to use.
 
-Observe_evented's specialty is to split the batch of changes returned by the native API into atomic and consistant easy-to-handle events. Test it on <a href="http://jsfiddle.net/d9w3uaav/">this jsFiddle page</a>.
+Observe_evented's specialty is to split the batch of changes returned by the native API into atomic and consistent easy-to-handle events. Test it on <a href="http://jsfiddle.net/d9w3uaav/">this jsFiddle page</a>.
 
 This library requires :
 - jQuery 1.7+
@@ -380,9 +380,9 @@ No events were sent for the intermediary states of `basket.fruit` and `basket.ve
 Other options
 -------------------------
 
-`options.eventTypes` An array of enabled event types. Any event whose type is not included in this array will not be triggered. If you want to get events from another type than the standard ones (namely because you used notifiers), you will have to set up this option. Default: `null`.
+`options.eventTypes` An array of enabled event types. Any event whose type is not included in this array will not be triggered. If you want to get events from another type than the standard ones (namely because you use notifiers), you will have to set up this option. Default: `null`.
 
-The `$.observe.defaultOptions` method lets you modify the default options for all future calls, like for example:
+`$.observe.defaultOptions` This method lets you modify the default options for all future calls, like for example:
 
 ```javascript
 $.observe.defaultOptions({
