@@ -21,8 +21,9 @@ General usage
 OBSERVE :
 
 ```javascript
-// `callback` is called at each change with a single event as first argument.
 // `object` can be an Array or an Object.
+// `name` is the name of a property of `object`.
+// `callback` is called at each change with a single event as first argument.
 
 $.observe(object [, name] [, options] [, callback]);
 ```
@@ -149,7 +150,7 @@ basket.fruit = 'strawberry';
 delete basket.fruit;
 ```
 
-For clarity, we'll use this notation in the rest of examples.
+For clarity, we'll use the latter notation in the rest of examples.
 
 Side note : if you know your jQuery, you know you can also write:
 
@@ -163,7 +164,7 @@ Observe a specific property of an object
 -------------------------
 
 Quite often you'll be interested in the changes of a specific property of an array.
-That's when you should use the second parameter of $.observe:
+That's when you should use the second parameter of `$.observe`:
 
 ```javascript
 var basket = {};
@@ -229,7 +230,7 @@ basket.splice(0, 2, 'cherry', 'mango');
 
 A special note about the `delete basket[0];` command : as this effectively sets the value of `basket[0]` to `null` and does not actually remove the cell at index 0, it is an `update` event that will be triggered with `event.value = null`. Use the `splice` method to actually remove values from an array and consider stop using `delete` with arrays.
 
-Please note that the second argument to $.observe, `name`, while *technically* working on arrays too, will probably not produce the result you would expect and will be useless to most people.
+Please note that the second argument to `$.observe`, `name`, while *technically* working on arrays too, will probably not produce the result you would expect and will be useless to most people.
 
 Observe multiple objects or arrays with a single function
 -------------------------
@@ -375,7 +376,7 @@ delete basket.meat;
 // A property "vegetable" was created, its value is "pea"
 ```
 
-As you can see, Observe_evented sends events as if the array went directly from its original state to its final one, that is to say :  
+As you can see, Observe_evented sends events as if the object went directly from its original state to its final one, that is to say :  
 from `{ fruit: 'apple' }` to `{ fruit: 'cherry', vegetable: 'pea' }`
 
 No events were sent for the intermediary states of `basket.fruit` and `basket.vegetable`. Since `basket.meat` does exist before the modifications nor after, no events are sent about that either.
