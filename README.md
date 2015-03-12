@@ -7,13 +7,13 @@ Observe_evented's specialty is to split the batch of changes returned by the nat
 
 This library requires :
 - jQuery 1.7+
-- an Object.observe compatible browser (only Chrome as of now, 2015-03) OR a shim that will emulate it on other browsers.
+- an Object.observe compatible browser (only Chrome as of now, 2015-03) OR a shim that will emulate it in other browsers.
 
 Object.observe is a proposed feature in the draft of ECMAScript 7.
 As the standard itself may still evolve, this library may change accordingly.
 You can read more about it [here](http://www.html5rocks.com/en/tutorials/es7/observe/).  
 
-NOTE: examples on this page may not produce the same results if a shim is used instead of a natively compatible browser.
+NOTE: examples on this page may produce different results if a shim is used instead of a natively compatible browser.
 
 General usage
 -------------------------
@@ -150,7 +150,7 @@ basket.fruit = 'strawberry';
 delete basket.fruit;
 ```
 
-For clarity, we'll use the latter notation in the rest of examples.
+For clarity, we'll use the latter notation in the rest of the examples.
 
 Side note : if you know your jQuery, you know you can also write:
 
@@ -163,7 +163,7 @@ $.observe(basket).on('add update', function(event){
 Observe a specific property of an object
 -------------------------
 
-Quite often you'll be interested in the changes of a specific property of an array.
+Quite often you'll be interested in the changes of a specific property of an object.
 That's when you should use the second parameter of `$.observe`:
 
 ```javascript
