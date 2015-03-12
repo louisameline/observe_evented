@@ -3,7 +3,7 @@ Observe_evented
 
 A Javascript class that makes Array.observe and Object.observe very easy to use.
 
-Observe_evented's specialty is to split the batch of changes returned by the native API into atomic and consistant easy-to-handle events.
+Observe_evented's specialty is to split the batch of changes returned by the native API into atomic and consistant easy-to-handle events. Test it on <a href="http://jsfiddle.net/d9w3uaav/">this jsFiddle page</a>.
 
 This library requires :
 - jQuery 1.7+
@@ -42,20 +42,22 @@ UNOBSERVE:
 $observer.unobserve();
 ```
 
-or
+or, for all observers on the object :
 
 ```javascript
 $.unobserve(object);
 ```
 
-EVENTS are generally in the following form:
+EVENTS have these properties:
 
 ```javascript
 {
 	name: PropertyNameOrIndexOfChangedValue,
 	object: observedObject,
-	oldValue: valueBeforeEvent,
 	type: TypeOfEvent,
+	// not present on update events
+	oldValue: valueBeforeEvent
+	// not present on remove events
 	value: valueAfterEvent
 }
 ```
@@ -305,7 +307,7 @@ $.observe(basket).on('add', function(event){
 basket.push('apple');
 
 // stop all observers on the object
-$.unobserver(basket);
+$.unobserve(basket);
 
 // triggers nothing
 basket.push('banana');
@@ -426,7 +428,7 @@ basket.splice(0, 2, 'strawberry');
 ...will log:
 
 ```javascript
-// note: "object" has been collapsed, its value is ["strawberry", "apple", "pear"] all along
+// Note: "object" has been collapsed, its value is ["strawberry", "apple", "pear"] all along.
 
 [
   {

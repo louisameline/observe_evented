@@ -434,6 +434,7 @@
 			// user batch processing : emit an event with the raw
 			// changes object provided by O.o
 			finalEventsStack.unshift({
+				object: object,
 				type: 'rawBatch',
 				value: changes
 			});
@@ -441,6 +442,7 @@
 			// user batch processing : also emit the whole array of atomic
 			// events we have computed
 			finalEventsStack.unshift({
+				object: object,
 				type: 'batch',
 				value: events
 			});
