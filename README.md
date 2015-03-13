@@ -3,7 +3,7 @@ Observe_evented
 
 A Javascript class that makes Array.observe and Object.observe very easy to use.
 
-Observe_evented's specialty is to split the batch of changes returned by the native API into atomic and consistent easy-to-handle events. Test it on <a href="http://jsfiddle.net/d9w3uaav/1/">this jsFiddle page</a>.
+Observe_evented's specialty is to split the batch of changes returned by the native API into atomic and consistent easy-to-handle events. Test it on <a href="http://jsfiddle.net/d9w3uaav/2/">this jsFiddle page</a>.
 
 This library requires :
 - jQuery 1.7+
@@ -390,6 +390,8 @@ No events were sent for the intermediary states of `basket.fruit` and `basket.ve
 
 Other options
 -------------------------
+
+`options.batchOnly` If you prefer to work on batched events (see the section below) and do not need them to be triggered individually, set this option to `true`. Only the `batch` and `rawBatch` events will then be triggered. Default: `false`.
 
 `options.eventTypes` An array of enabled event types. Any event whose type is not included in this array will not be triggered. If you want to get events from another type than the standard ones (namely because you use notifiers), you will have to set up this option. Default: `null`.
 

@@ -10,6 +10,7 @@
 (function($){
 	
 	var defaultOptions = {
+			batchOnly: false,
 			dropValues: false,
 			eventTypes: null,
 			minimalEvents: false,
@@ -90,11 +91,6 @@
 		else if(typeof options === 'function'){
 			callback = options;
 			options = {};
-		}
-		
-		// callback is falsy
-		if(!callback){
-			callback = function(){};
 		}
 		
 		// convert name to an array if a string was provided
@@ -468,25 +464,26 @@
 				}
 			}
 			
-			// we'll emit two more events additionaly to the original ones and
-			// this prevents a circular reference
-			var finalEventsStack = $.merge([], events);
+			// we'll emit two events additionaly to the original ones for batch
+			// processing. Using a new array prevents a circular reference
+			var finalEventsStack = [
+				// emit the whole array of atomic events we have computed
+				{
+					object: object,
+					type: 'batch',
+					value: events
+				},
+				// also emit the raw changes object provided by O.o
+				{
+					object: object,
+					type: 'rawBatch',
+					value: changes
+				}
+			];
 			
-			// user batch processing : emit an event with the raw
-			// changes object provided by O.o
-			finalEventsStack.unshift({
-				object: object,
-				type: 'rawBatch',
-				value: changes
-			});
-			
-			// user batch processing : also emit the whole array of atomic
-			// events we have computed
-			finalEventsStack.unshift({
-				object: object,
-				type: 'batch',
-				value: events
-			});
+			if(!options.batchOnly){
+				$.merge(finalEventsStack, events);
+			}
 			
 			$.each(finalEventsStack, function(i, event){
 				
@@ -495,7 +492,9 @@
 				){
 					if(nameArray === null || $.inArray(event.name, nameArray) !== -1){
 						
-						callback.call(object, event);
+						if(callback){
+							callback.call(object, event);
+						}
 						
 						observer.$eventEmitter.trigger(event);
 					}
