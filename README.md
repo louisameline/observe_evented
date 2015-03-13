@@ -22,7 +22,7 @@ OBSERVE :
 
 ```javascript
 // `object` can be an Array or an Object.
-// `name` is the name of a property of `object`.
+// `name` is the name of a property of `object`, or an array of names.
 // `callback` is called at each change with a single event as first argument.
 
 $.observe(object [, name] [, options] [, callback]);
@@ -185,6 +185,13 @@ basket.fruit = 'apple';
 basket.fruit = 'strawberry';
 // triggers nothing
 basket.vegetable = 'carrot';
+basket.drink = 'coke';
+```
+
+You may also provide an array instead if you are interested in several properties:
+
+```javascript
+var $observer = $.observe(basket, ['fruit', 'drink']);
 ```
 
 Observe an array
@@ -388,6 +395,8 @@ Other options
 
 `options.noArrayUpdate` Semantically, updating a value in an array is not the same thing as removing it and adding its replacement at the same index. However, the end result is the same. Furthermore, a browser using a shim won't even be able to make the difference. For the sake of consistency, this is why you may set this option to `true` to remove any `update` events triggered on an array and replace them by a `remove` event followed by an `add` event. Default: `false`
 
+`options.shim` Should you wish to use a shim that does not directly extend Object and Array prototype, you may provide an adapter for it via this option. You must provide an object that has `Array` and `Object` properties which will expose `observe` and `unobserve` methods.
+
 `$.observe.defaultOptions` This method lets you modify the default options for all future calls, like for example:
 
 ```javascript
@@ -583,3 +592,5 @@ Have the library reviewed by the folks behind the O.o draft.
 Write tests. Help is welcome !
 
 See if there is a good shim out there that could be recommended to use alongside with Observe_evented.
+
+Consider a version that does not depend on jQuery if people are asking for it.

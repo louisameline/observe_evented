@@ -13,7 +13,8 @@
 			dropValues: false,
 			eventTypes: null,
 			minimalEvents: false,
-			noArrayUpdate: false
+			noArrayUpdate: false,
+			shim: null
 		},
 		_observe,
 		observers = [],
@@ -51,6 +52,15 @@
 		return observers[index].observers;
 	};
 	
+	/**
+	 * @param {object|array} object
+	 * @param {string|integer|array} optional name The name/index of a
+	 * property/value of `object`, or an array of names/indices
+	 * @param {object} optional options
+	 * @param {function} optional callback
+	 * @return {object} An object that has `on`, `off` and `unobserve`
+	 * properties
+	 */
 	$.observe = function(object, name, options, callback){
 		
 		// MANAGE PARAMETERS
@@ -60,7 +70,7 @@
 			name = null;
 		}
 		// object, options
-		else if(typeof name === 'object'){
+		else if(typeof name === 'object' && !$.isArray(name)){
 			callback = options || function(){};
 			options = name;
 			name = null;
@@ -85,6 +95,12 @@
 		// callback is falsy
 		if(!callback){
 			callback = function(){};
+		}
+		
+		// convert name to an array if a string was provided
+		var nameArray = null;
+		if(name !== null){
+			nameArray = (typeof name === 'string') ? [name] : name;
 		}
 		
 		// setup options
@@ -477,10 +493,10 @@
 				if(		!options.eventTypes
 					||	$.inArray(event.type, options.eventTypes) !== -1
 				){
-					if(name === null || name === event.name){
+					if(nameArray === null || $.inArray(event.name, nameArray) !== -1){
 						
 						callback.call(object, event);
-					
+						
 						observer.$eventEmitter.trigger(event);
 					}
 				}
@@ -491,6 +507,7 @@
 		observer.$eventEmitter = $({
 			// providing these properties might be useful for debugging
 			object: object,
+			// return name as it was passed (or null if undefined)
 			name: name
 		});
 		
@@ -511,6 +528,18 @@
 			eventTypes = undefined,
 			isArray = $.isArray(object),
 			primitive = isArray ? Array : Object;
+		
+		if(!primitive.observe){
+			
+			var primitiveName = isArray ? 'Array' : 'Object';
+			
+			if(options.shim && options.shim[primitiveName].observe){
+				primitive = options.shim[primitiveName];
+			}
+			else {
+				throw new TypeError('This environment does not support ' + primitiveName + '.observe');
+			}
+		}
 		
 		// an array of types as third parameter only applies to objects (as far
 		// as the call to O.o is concerned)
@@ -544,11 +573,7 @@
 		primitive.observe(
 			object,
 			observer,
-			eventTypes,
-			// the 4th parameter, if defined, will be ignored by the native observe
-			// function but, when the browser does not support O.O out of the box,
-			// should hopefull be used for dirty-checking optimisation by the shim.
-			name
+			eventTypes
 		);
 		
 		return observer.$eventEmitter;
