@@ -793,9 +793,6 @@
 	emitter.prototype.deliverChangeRecords = function(){
 		this.objectData.primitive.deliverChangeRecords(this.objectData.observer);
 	};
-	emitter.prototype.getNotifier = function(){
-		this.objectData.primitive.getNotifier(this.objectData.object);
-	};
 	
 	/*! jQuery utils */
 	var $ = {

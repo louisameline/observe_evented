@@ -7,7 +7,7 @@ Observe_evented's specialty is to split the batch of changes returned by the nat
 
 Test it on <a href="http://jsfiddle.net/d9w3uaav/5/">this jsFiddle page</a>.
 
-This library has no dependency. It will work in Array/Object.observe compatible environments (for browsers, only Chrome as of now, 2015-03) OR with a shim that will emulate Array/Object.observe.
+This library has no dependency. It works in Object.observe compatible environments like Node 0.11.13+ and Chrome 36+, or other environments with a shim that will emulate Array/Object.observe.
 
 Object.observe is a proposed feature in the draft of ECMAScript 7.
 As the standard itself may still evolve, this library may change accordingly.
@@ -410,17 +410,16 @@ observer.destroy();
 basket.fruit = 'pear';
 ```
 
-Advanced: deliverChangeRecords and getNotifier
+Advanced: deliverChangeRecords
 -------------------------
 
-These methods are directly proxied by Observe_evented on the currently observed object, without the need for you to provide any arguments :
+This methods is directly proxied by Observe_evented on the currently observed object, without the need for you to provide any arguments :
 
 ```javascript
 var basket = { fruit: 'apple' },
 	observer = observe_evented.observe(basket);
 
 observer.deliverChangeRecords();
-observer.getNotifier();
 ```
 
 Advanced : Manage the events in batches
