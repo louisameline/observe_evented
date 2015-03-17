@@ -3,50 +3,38 @@
 /* 
  * Object.observe and Array.observe made easy.
  * Developped by Louis AMELINE under the MIT license http://opensource.org/licenses/MIT
- * Released on 2015-03-12
+ * Released on 2015-03-17
  * 
  * https://github.com/louisameline/observe_evented
  */
-(function(global){
+(function(root){
 	
 	var defaultOptions = {
 			additionalEventTypes: [],
+			multipleObservers: false,
 			output: {
 				batchOnly: false,
 				dropValues: false,
 				minimalEvents: false,
-				nameFilter: null,
 				noUpdateEvents: false
 			},
 			shim: null
 		},
-		objectsData = [],
-		standardObjectEventTypes = ['add', 'update', 'delete', 'reconfigure', 'setPrototype'];
-	
-	// this function lets us never do the same calculations twice. Its
-	// output is the computed events.
-	var computeAlgoPath = function(changes, calculations, algoPath){
+		objectsDataStore = [],
+		standardObjectEventTypes = ['add', 'update', 'delete', 'reconfigure', 'setPrototype'],
+		// process changes with the provided algorithms
+		computeAlgoPath = function(changes, algoPath){
 			
-			var events = changes,
-				algoPath_str = '';
+			var events = changes;
 			
 			for(var i = 0; i < algoPath.length; i++){
-				
-				algoPath_str += algoPath[i];
-				
-				if(calculations[algoPath_str]){
-					events = calculations[algoPath_str];
-				}
-				else {
-					events = algos[algoPath[i]](events);
-					calculations[algoPath_str] = events;
-				}
+				events = algos[algoPath[i]](events);
 			}
 			
 			return events;
 		},
+		// various algorithms for event processing
 		algos = {
-			// successive algorithms for events.
 			// turn the raw batch of events into atomic events
 			computeEvents: function(changes){
 				
@@ -445,23 +433,54 @@
 				return tamperedEvents;
 			}
 		},
+		// allows to change the set of default options
+		setDefaultOptions = function(options){
+			defaultOptions = $.extend(defaultOptions, options);
+		},
+		emitter = function(objectData){
+			this.objectData = objectData;
+		},
 		// return the data of observers active on the given object
 		// (and creating this array if it does not exist yet)
 		objectsDataFn = function(object){
 			
-			var index;
-			for(var i = 0; i < objectsData.length; i++){
-				if(object === objectsData[i].object){
-					index = i;
-					break;
+			var a = [];
+			for(var i = 0; i < objectsDataStore.length; i++){
+				if(object === objectsDataStore[i].object){
+					a.push(objectsDataStore[i]);
 				}
 			}
 			
-			if(index === undefined){
+			return a;
+		},
+		/**
+		 * @param {object|array} object
+		 * @param {object} optional options
+		 * @param {function} optional callback
+		 * @return {object} An object that has `on`, `off` and `unobserve`
+		 * properties
+		 */
+		observe = function(object, options, callback){
+			
+			// observe(object)
+			if(!options){
+				options = {};
+			}
+			// observe(object, callback)
+			else if(typeof options === 'function'){
+				callback = options;
+				options = {};
+			}
+			
+			// get any existing data about the current object
+			var objectsData = objectsDataFn(object),
+				objectData,
+				oldAdEvTp;
+			
+			// if there is none or if we want to create a new observer
+			if(objectsData.length === 0 || options.multipleObservers){
 				
-				index = objectsData.length;
-				
-				var objectData = {
+				objectData = {
 					callbacks: [],
 					emitter: null,
 					isArray: object.constructor === Array,
@@ -472,76 +491,130 @@
 				
 				objectData.emitter = new emitter(objectData);
 				
-				objectsData.push(objectData);
+				objectsDataStore.push(objectData);
+			}
+			else {
+				// we'll use the first we find
+				objectData = objectsData[0];
+				
+				// save this before we overwrite it
+				oldAdEvTp = objectData.options.additionalEventTypes;
 			}
 			
-			return objectsData[index];
-		},
-		// there will be only one observer per object and it will call the
-		// different callbacks set by the user.
-		getObserver = function(){
-			// returned as an anonymous function to have a unique function
-			// per emitter
-			return function(changes){
+			// (re)set observer options
+			objectData.options = $.extend({}, defaultOptions);
+			$.extend(objectData.options, options);
+			
+			// register the callback if there is one
+			if(callback){
+				objectData.emitter.on(null, callback);
+			}
+			
+			// in case the observer existed : unobserve if the event
+			// types in the options differ
+			if(objectData.observer){
 				
-				var	object = changes[0].object,
-					objectData = objectsDataFn(object),
-					callbacks = objectData.callbacks,
-					calculations = {};
+				var differs = false,
+					adEvTp = objectData.options.additionalEventTypes;
 				
-				// determine the algoPath
-				var algoPath = ['computeEvents'];
-				if(!objectData.options.output.dropValues){
-					algoPath.push('findValues');
+				if(adEvTp.length !== oldAdEvTp.length){
+					differs = true;
 				}
-				if(objectData.options.output.minimalEvents){
-					algoPath.push('minimalEvents');
-				}
-				if(objectData.options.output.noUpdateEvents){
-					algoPath.push('noUpdateEvents');
-				}
-				
-				// get the event list in the desired format
-				var events = computeAlgoPath(changes, calculations, algoPath),
-					// we'll emit an additional event to the computed ones for batch
-					// processing. Using a new array prevents a circular reference
-					eventsFinal = [
-						{
-							object: object,
-							type: 'batch',
-							value: {
-								raw: changes,
-								computed: events
-							}
-						}
-					];
-				
-				if(!objectData.options.output.batchOnly){
-					$.merge(eventsFinal, events);
-				}
-				
-				for(var i = 0; i < eventsFinal.length; i++){
+				else {
 					
-					for(var j = 0; j < callbacks.length; j++){
+					diff = [];
+					
+					if($.grep(adEvTp, function(eventType){
+						if($.inArray(eventType, oldAdEvTp) == -1){
+							diff.push(eventType);
+						}
+					})); 
+					
+					if(diff.length > 0){
+						differs = true;
+					}
+				}
+				if(differs){
+					objectData.emitter.disable();
+				}
+			}
+			
+			// determine the primitive or shim we'll use
+			var	primitive = objectData.isArray ? Array : Object;
+			
+			if(!primitive.observe){
+				
+				var primitiveName = objectData.isArray ? 'Array' : 'Object';
+				
+				if(objectData.options.shim && objectData.options.shim[primitiveName].observe){
+					primitive = objectData.options.shim[primitiveName];
+				}
+				else {
+					throw new TypeError('This environment does not support ' + primitiveName + '.observe');
+				}
+			}
+			objectData.primitive = primitive;
+			
+			// start observing if needed
+			if(!objectData.observer){
+				objectData.emitter.enable();
+			}
+			
+			return objectData.emitter;
+		},
+		observer = function(objectData, changes){
+			
+			var callbacks = objectData.callbacks,
+				// determine the algoPath
+				algoPath = ['computeEvents'];
+			
+			if(!objectData.options.output.dropValues){
+				algoPath.push('findValues');
+			}
+			if(objectData.options.output.minimalEvents){
+				algoPath.push('minimalEvents');
+			}
+			if(objectData.options.output.noUpdateEvents){
+				algoPath.push('noUpdateEvents');
+			}
+			
+			// get the event list in the desired format
+			var events = computeAlgoPath(changes, algoPath),
+				// we'll emit an additional event to the computed ones for batch
+				// processing. Using a new array prevents a circular reference
+				eventsFinal = [
+					{
+						object: objectData.object,
+						type: 'batch',
+						value: {
+							raw: changes,
+							computed: events
+						}
+					}
+				];
+			
+			if(!objectData.options.output.batchOnly){
+				$.merge(eventsFinal, events);
+			}
+			
+			for(var j = 0; j < eventsFinal.length; j++){
+				
+				for(var k = 0; k < callbacks.length; k++){
+					
+					// filter on property name
+					if(		callbacks[k].nameFilter === null
+						||	$.inArray(eventsFinal[j].name, callbacks[k].nameFilter) !== -1
+					){
 						
-						// filter on property name
-						if(		callbacks[j].nameFilter === null
-							||	$.inArray(eventsFinal[i].name, callbacks[j].nameFilter) !== -1
+						// filter on event type
+						if(		callbacks[k].eventTypes === null
+							||	$.inArray(eventsFinal[j].type, callbacks[k].eventTypes) !== -1
 						){
-							
-							// filter on event type
-							if(		callbacks[j].eventTypes === null
-								||	$.inArray(eventsFinal[i].type, callbacks[j].eventTypes) !== -1
-							){
-								callbacks[j].callback.call(object, eventsFinal[i]);
-							}
+							callbacks[k].callback.call(objectData.object, eventsFinal[j]);
 						}
 					}
 				}
 			}
-		},
-		emitter = function(objectData){
-			this.objectData = objectData;
 		};
 	
 	emitter.prototype.on = function(eventType, nameFilter, callback){
@@ -653,6 +726,8 @@
 	};
 	emitter.prototype.enable = function(){
 		
+		var that = this;
+		
 		if(!this.objectData.observer){
 			
 			// null does not work as a third argument
@@ -670,139 +745,56 @@
 				}
 			}
 			
-			var observer = getObserver();
+			// wrap in an anonymous function tpo pass an argument but also
+			// to have a unique function per emitter, which is useful when
+			// using deliverChangeRecords
+			var obsWrapper = function(changes){
+				return observer(that.objectData, changes);
+			};
 			
 			this.objectData.primitive.observe(
 				this.objectData.object,
-				observer,
+				obsWrapper,
 				eventTypes
 			);
 			
-			this.objectData.observer = observer;
+			this.objectData.observer = obsWrapper;
 		}
 	};
 	emitter.prototype.disable = function(){
-		
+		this.objectData.primitive.deliverChangeRecords(this.objectData.observer);
 		this.objectData.primitive.unobserve(this.objectData.object, this.objectData.observer);
 		
 		this.objectData.observer = null;
 	};
 	emitter.prototype.destroy = function(asynchronous){
 		
-		var that = this;
+		var that = this,
+			finish = function(){
+				// remove listeners
+				that.off();
+				// delete the data object corresponding to the observer
+				objectsDataStore.splice($.inArray(this.objectData, objectsDataStore), 1);
+			};
 		
-		// remove observer
-		this.disable();
-		
-		var finish = function(){
-			
-			// remove listeners
-			that.off();
-			
-			// delete the data object corresponding to the observer
-			objectsData.splice($.inArray(this.objectData, objectsData), 1);
-		};
-		
-		if(!asynchronous){
-			
-			// deliver queued changes
-			this.objectData.primitive.deliverChangeRecords(this.objectData.observer);
-			
-			finish();
-		}
-		else {
+		if(asynchronous){
 			setTimeout(finish, 0);
 		}
+		else {
+			// deliver queued changes
+			this.deliverChangeRecords();
+			finish();
+		}
+		
+		// remove the observer
+		this.disable();
 	};
-	
-	/**
-	 * @param {object|array} object
-	 * @param {object} optional options
-	 * @param {function} optional callback
-	 * @return {object} An object that has `on`, `off` and `unobserve`
-	 * properties
-	 */
-	var observe = function(object, options, callback){
-		
-		// observe(object)
-		if(!options){
-			options = {};
-		}
-		// observe(object, callback)
-		else if(typeof options === 'function'){
-			callback = options;
-			options = {};
-		}
-		
-		// get any existing data about the current object
-		var objectData = objectsDataFn(object),
-			// save this before we overwrite it
-			oldAdEvTp = objectData.options.additionalEventTypes;
-		
-		// (re)set observer options
-		objectData.options = $.extend({}, defaultOptions);
-		$.extend(objectData.options, options);
-		
-		// register the callback if there is one
-		if(callback){
-			objectData.emitter.on(null, callback);
-		}
-		
-		// unobserve the object if the event types differ
-		if(objectData.observer){
-			
-			var differs = false,
-				adEvTp = objectData.options.additionalEventTypes;
-			
-			if(adEvTp.length !== oldAdEvTp.length){
-				differs = true;
-			}
-			else {
-				
-				diff = [];
-				
-				if($.grep(adEvTp, function(eventType){
-					if($.inArray(eventType, oldAdEvTp) == -1){
-						diff.push(eventType);
-					}
-				})); 
-				
-				if(diff.length > 0){
-					differs = true;
-				}
-			}
-			if(differs){
-				objectData.emitter.disable();
-			}
-		}
-		
-		// determine the primitive or shim we'll use
-		var	primitive = objectData.isArray ? Array : Object;
-		
-		if(!primitive.observe){
-			
-			var primitiveName = objectData.isArray ? 'Array' : 'Object';
-			
-			if(objectData.options.shim && objectData.options.shim[primitiveName].observe){
-				primitive = objectData.options.shim[primitiveName];
-			}
-			else {
-				throw new TypeError('This environment does not support ' + primitiveName + '.observe');
-			}
-		}
-		objectData.primitive = primitive;
-		
-		// start observing if needed
-		if(!objectData.observer){
-			objectData.emitter.enable();
-		}
-		
-		return objectData.emitter;
+	// proxy the deliverChangeRecords and getNotifier methods
+	emitter.prototype.deliverChangeRecords = function(){
+		this.objectData.primitive.deliverChangeRecords(this.objectData.observer);
 	};
-	
-	// allows to change the set of default options
-	var defaultOptions = function(options){
-		defaultOptions = $.extend(defaultOptions, options);
+	emitter.prototype.getNotifier = function(){
+		this.objectData.primitive.getNotifier(this.objectData.object);
 	};
 	
 	/*! jQuery utils */
@@ -901,8 +893,19 @@
 		}
 	};
 	
-	window.observe_evented = {
+	var observe_evented = {
 		observe: observe,
-		defaultOptions: defaultOptions
+		defaultOptions: setDefaultOptions
 	};
-})(window);
+	
+	if(typeof exports !== 'undefined'){
+		if(typeof modules !== 'undefined' && module.exports){
+			exports = module.exports = observe_evented;
+		}
+		exports.observe_evented = observe_evented;
+	} 
+	else {
+		root.observe_evented = observe_evented;
+	}
+	
+})(this);

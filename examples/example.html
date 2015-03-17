@@ -16,6 +16,10 @@
 				color: green;
 			}
 
+			.purple {
+				color: purple;
+			}
+
 			.red {
 				color: red;
 			}
@@ -42,27 +46,19 @@
 							//noUpdateEvents: true
 						},
 						shim: null
-					};
+					},
+					// replace basket1 by basket2 in this line to test on
+					// an array instead of an object
+					basket = basket1;
 				
-				// replace basket1 by basket2 in this line to test on an array instead of an object
-				var $observer = observe_evented.observe(basket1, options);
+				// start observing
+				var observer = observe_evented.observe(basket, options);
 				
-				$observer
-					.on('add', function(event){
-						show('<span class="green">Added</span> : ' + propOrIndex(event.object) + ' <b>' +
-							 event.name + '</b>, value <b>' + event.value + '</b>'
-						);
-					})
-					.on('update', function(event){
-					   show('<span class="blue">Updated</span> : ' + propOrIndex(event.object) + ' <b>' + event.name + 
-							'</b>, ' + 'value went from <b>' + event.oldValue + '</b> to <b>' + event.value + '</b>'
-					   );
-					})
-					.on('remove', function(event){
-						show('<span class="red">Removed</span> : ' + propOrIndex(event.object) + ' <b>' + event.name +
-							 '</b>, former value was <b>' + event.oldValue + '</b>'
-						);
-					})
+				// set listeners
+				observer
+					.on('add', addCallback)
+					.on('update', updateCallback)
+					.on('remove', removeCallback)
 					.on('add update remove', function(event){
 						// uncomment to see the object representation of regular events
 						//logEvent(event);
@@ -73,22 +69,22 @@
 						//logEvent(event.value.raw);
 					});
 				
+				// uncomment to set a second observer
+				//var observer2 = observe_evented.observe(basket, { multipleObservers: true });
+				//observer2.on('add', addCallbackPurple);
+				
 				// object changes
 				basket1.fruit = 'apple';
 				basket1.fruit = 'strawberry';
 				basket1.vegetable = 'pea';
 				basket1.vegetable = 'bean';
-				$observer.disable();
+				//observer.disable();
 				basket1.drink = 'coke';
-				$observer.enable();
+				//observer.enable();
 				basket1.meat = 'chicken';
 				delete basket1.meat;
-				
-				setTimeout(function(){
-					basket1.drink = 'pepsi';
-					$observer.destroy();
-					basket1.drink = 'sprite';
-				}, 5);
+				//observer.destroy();
+				basket1.drink = 'pepsi';
 				
 				// array changes
 				basket2[0] = 'peach';
@@ -101,7 +97,28 @@
 				
 				
 				
+				
 				// UTILS
+				function addCallback(event){
+					show('<span class="green">Added</span> : ' + propOrIndex(event.object) + ' <b>' +
+						 event.name + '</b>, value <b>' + event.value + '</b>'
+					);
+				}
+				function addCallbackPurple(event){
+					show('<span class="purple">Added</span> : ' + propOrIndex(event.object) + ' <b>' +
+						 event.name + '</b>, value <b>' + event.value + '</b>'
+					);
+				}
+				function updateCallback(event){
+					show('<span class="blue">Updated</span> : ' + propOrIndex(event.object) + ' <b>' + event.name + 
+						'</b>, ' + 'value went from <b>' + event.oldValue + '</b> to <b>' + event.value + '</b>'
+				   );
+				}
+				function removeCallback(event){
+					show('<span class="red">Removed</span> : ' + propOrIndex(event.object) + ' <b>' + event.name +
+						 '</b>, former value was <b>' + event.oldValue + '</b>'
+					);
+				}
 				function show(val){
 					$('#main').append('<div>' + val + '</div>');
 				}
@@ -116,7 +133,7 @@
 		</script>
 	</head>
 	<body>
-		<p>This example will be hosted on jsFiddle at <a href="http://jsfiddle.net/d9w3uaav/2/">this address</a>.</p>
+		<p>This example will be hosted on jsFiddle at <a href="http://jsfiddle.net/d9w3uaav/5/">this address</a>.</p>
 		<p>Check the source code of this page to see what happens backstage.</p>
 		<div id="main"></div>
 	</body>

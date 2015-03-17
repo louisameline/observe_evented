@@ -1,13 +1,13 @@
 Observe_evented
 ===========
 
-A Javascript class that makes Array.observe and Object.observe very easy to use.
+A Javascript class that makes Array.observe and Object.observe easy to use.
 
-Observe_evented's specialty is to split the batch of changes returned by the native API into atomic and consistent easy-to-handle events. Test it on <a href="http://jsfiddle.net/d9w3uaav/2/">this jsFiddle page</a>.
+Observe_evented's specialty is to split the batch of changes returned by the native API into atomic and consistent events. It also provides several options that make them easier to handle.
 
-This library requires :
-- jQuery 1.7+
-- an Object.observe compatible browser (only Chrome as of now, 2015-03) OR a shim that will emulate it in other browsers.
+Test it on <a href="http://jsfiddle.net/d9w3uaav/5/">this jsFiddle page</a>.
+
+This library has no dependency. It will work in Array/Object.observe compatible environments (for browsers, only Chrome as of now, 2015-03) OR with a shim that will emulate Array/Object.observe.
 
 Object.observe is a proposed feature in the draft of ECMAScript 7.
 As the standard itself may still evolve, this library may change accordingly.
@@ -15,39 +15,61 @@ You can read more about it [here](http://www.html5rocks.com/en/tutorials/es7/obs
 
 NOTE: examples on this page may produce different results if a shim is used instead of a natively compatible browser.
 
-General usage
+Basic usage
 -------------------------
 
-OBSERVE :
+CREATE AN OBSERVER
 
 ```javascript
 // `object` can be an Array or an Object.
-// `name` is the name of a property of `object`, or an array of names.
+var observer = observe_evented.observe(object [, options]);
+```
+
+LISTEN TO CHANGES
+
+```javascript
+// `eventType` is one event type or several space-separated event types.
+// `name` is optional, to filter the changes on a property name. It may be a
+// string or an array of strings.
 // `callback` is called at each change with a single event as first argument.
-
-$.observe(object [, name] [, options] [, callback]);
+observer.on(eventType [, name] , callback);
 ```
 
-or
+REMOVE A LISTENER
 
 ```javascript
-var $observer = $.observe(object [, name] [, options]);
-
-$observer.on(eventType, function(event){
-	console.log(event);
-});
+observer.off(handler);
+// or, to stop the listener only for a given event type:
+// (note: space-separated event types is also possible)
+observer.off(eventType, handler);
 ```
 
-UNOBSERVE:
+or, to remove several listeners:
 
 ```javascript
-$observer.unobserve();
+// stop all listeners on the observer for a given event type:
+// (note: space-separated event types is also possible)
+observer.off(eventType);
+// or, to stop all listeners of the observer altogether:
+observer.off();
 ```
 
-or, for all observers on the object :
+PAUSE AN OBSERVER
 
 ```javascript
-$.unobserve(object);
+observer.disable();
+```
+
+RESUME AN OBSERVER
+
+```javascript
+observer.enable();
+```
+
+REMOVE AN OBSERVER
+
+```javascript
+observer.destroy(asynchronously);
 ```
 
 EVENTS have these properties:
@@ -55,71 +77,27 @@ EVENTS have these properties:
 ```javascript
 {
 	name: PropertyNameOrIndexOfChangedValue,
-	object: observedObject,
+	object: observedObjectOrArray,
 	type: TypeOfEvent,
-	// not present on update events
+	// not present on add events
 	oldValue: valueBeforeEvent
 	// not present on remove events
 	value: valueAfterEvent
 }
 ```
 
-Observe a whole object
+and their types are usually `add`, `update` or `remove`.
+
+Basic examples
 -------------------------
 
-Let's configure our observer like this:
+Observe an object:
 
 ```javascript
-var basket = {};
+var basket = {},
+	observer = observe_evented.observe(basket);
 
-$.observe(basket, function(event){
-	
-	switch(event.type){
-		
-		case 'add':
-			console.log(
-				'A property named "' + event.name +
-				'" with the value "' + event.value +
-				'" was added to the object'
-			);
-			break;
-		
-		case 'update':
-			console.log(
-				'The property named "' + event.name +
-				'" was updated from "' + event.oldValue +
-				'" to "' + event.value + '"'
-			);
-			break;
-		
-		case 'remove':
-			console.log(
-				'The property named "' + event.name +
-				'" with the value "' + event.oldValue +
-				'" was removed from the object'
-			);
-			break;
-		
-		default:
-			// let's not worry about the other event types yet
-			break;
-	}
-});
-
-// triggers an add event
-basket.fruit = 'apple';
-// triggers an update event
-basket.fruit = 'strawberry';
-// triggers a remove event
-delete basket.fruit;
-```
-
-Note that this is exactly equivalent to :
-
-```javascript
-var basket = {};
-
-$.observe(basket)
+observer
 	.on('add', function(event){
 		console.log(
 			'A property named "' + event.name +
@@ -150,59 +128,13 @@ basket.fruit = 'strawberry';
 delete basket.fruit;
 ```
 
-For clarity, we'll use the latter notation in the rest of the examples.
-
-Side note : if you know your jQuery, you know you can also write:
+Observe an array (works the same way):
 
 ```javascript
-$.observe(basket).on('add update', function(event){
-	console.log('A property was added or updated');
-});
-```
+var basket = [],
+	observer = observe_evented.observe(basket);
 
-Observe a specific property of an object
--------------------------
-
-Quite often you'll be interested in the changes of a specific property of an object.
-That's when you should use the second parameter of `$.observe`:
-
-```javascript
-var basket = {};
-
-var $observer = $.observe(basket, 'fruit');
-
-$observer
-	.on('add', function(event){
-		console.log('The fruit property was added to the object');
-	})
-	.on('update', function(event){
-		console.log('The fruit property had a change of value');
-	});
-
-// triggers an add event
-basket.fruit = 'apple';
-// triggers an update event
-basket.fruit = 'strawberry';
-// triggers nothing
-basket.vegetable = 'carrot';
-basket.drink = 'coke';
-```
-
-You may also provide an array instead if you are interested in several properties:
-
-```javascript
-var $observer = $.observe(basket, ['fruit', 'drink']);
-```
-
-Observe an array
--------------------------
-
-Pretty much the same as observing an object.
-
-```javascript
-var basket = [];
-
-$.observe(basket)
+observer
 	.on('add', function(event){
 		console.log(
 			'At index ' + event.name +
@@ -237,89 +169,62 @@ basket.splice(0, 2, 'cherry', 'mango');
 
 A special note about the `delete basket[0];` command : as this effectively sets the value of `basket[0]` to `null` and does not actually remove the cell at index 0, it is an `update` event that will be triggered with `event.value = null`. Use the `splice` method to actually remove values from an array and consider stop using `delete` with arrays.
 
-Please note that the second argument to `$.observe`, `name`, while *technically* working on arrays too, will probably not produce the result you would expect and will be useless to most people.
+Observe a specific property of an object
+-------------------------
+
+Quite often you'll be interested in the changes of a specific property of an object. That's when you should use the second parameter of `observer.on`. 
+
+You may provide a property name or an array of property names:
+
+```javascript
+var basket = {},
+	observer = observe_evented.observe(basket);
+
+observer
+	.on('add', 'fruit', function(event){
+		console.log('The fruit property was added to the object');
+	})
+	.on('update', ['fruit', 'vegetable'], function(event){
+		console.log('The ' + event.name + ' property had a change of value');
+	});
+
+// triggers an add event
+basket.fruit = 'apple';
+// triggers an update event
+basket.fruit = 'strawberry';
+// triggers nothing
+basket.vegetable = 'carrot';
+// triggers an update event
+basket.vegetable = 'bean';
+// triggers nothing
+basket.drink = 'coke';
+```
+
+Please note that this second argument, while *technically* working on arrays too, will probably not produce the result you would expect and will be useless to most people.
 
 Observe multiple objects or arrays with a single function
 -------------------------
 
-Just use a single handler with multiple observers:
+Just use a single handler on multiple observers:
 
 ```javascript
 var basket1 = [],
 	basket2 = {},
 	myFunction = function(event){
 		if(event.type === 'add'){
-			var nb = $.isArray(event.object) ? 1 : 2;
+			var nb = (event.object.constructor === Array) ? 1 : 2;
 			console.log('A ' + event.value + ' was added to basket number ' + nb + ' ! ');
 		}
 	};
 
-var $observer1 = $.observe(basket1),
-	$observer2 = $.observe(basket2);
+var observer1 = observe_evented.observe(basket1),
+	observer2 = observe_evented.observe(basket2);
 
-$observer1.on('add', myFunction);
-$observer2.on('add', myFunction);
+observer1.on('add', myFunction);
+observer2.on('add', myFunction);
 
 basket1.push('peach');
 basket2.fruit = 'watermellon';
-```
-
-Or written with the callback argument syntax:
-
-```javascript
-$.observe(basket1, myFunction);
-$.observe(basket2, myFunction);
-```
-
-Unobserve : stop a specific observer
--------------------------
-
-```javascript
-var basket = [];
-
-var $observer = $.observe(basket);
-
-$observer.on('add', function(event){
-	console.log(
-		'At index ' + event.name +
-		', the following value was inserted: ' + event.value
-	);
-});
-
-// triggers an add event
-basket.push('apple');
-
-// unobserve
-$observer.unobserve();
-
-// triggers nothing
-basket.push('banana');
-```
-
-Unobserve : stop all observers on an object or array
--------------------------
-
-```javascript
-var basket = [];
-
-// create two observers on the same array (just for the example)
-
-$.observe(basket).on('add', function(event){
-	console.log('A: a value was added to basket');
-});
-
-$.observe(basket).on('add', function(event){
-	console.log('B: a value was added to basket');
-});
-
-// triggers two add events, one in each observer
-basket.push('apple');
-
-// stop all observers on the object
-$.unobserve(basket);
-
-// triggers nothing
-basket.push('banana');
 ```
 
 Event types
@@ -331,10 +236,10 @@ By default, the events sent by Observe_evented can be of the following types :
 
 Notifiers also let you create more event types (read the article linked at the top of this page).
 
-Options : optimize the results
+Options : optimize performances
 -------------------------
 
-An object of options can optionaly be provided as the third argument in the call to `$.observe`.
+An object of options can optionaly be provided in the call to `observe_evented.observe()`.
 
 Before explaining the options, note that Observe_evented :  
 - returns by default all events that happened on the object/array you observe,
@@ -342,16 +247,19 @@ Before explaining the options, note that Observe_evented :
 
 While this can be interesting in some cases and while debugging, you might want to work differently. The following options are here for that :
 
-`options.dropValues` Since setting the `event.value` properties has a (generally) minor performance cost, you can choose not to generate them if you don't need them. Default: `false`.
+`options.output.dropValues` Since generating the `event.value` properties has a (generally) minor performance cost, you can choose not to generate them if you don't need them. Default: `false`.
 
-`options.minimalEvents` Set this option to `true` to get only the minimum number of events nessary to transition from the object/array as it was before modifications to its current state. Example :
+`options.output.minimalEvents` Set this option to `true` to get only the minimum number of events nessary to transition from the object/array as it was before modifications to its current state. This can effectively optimize your application by ignoring meaningless events. Example :
 
 ```javascript
-var basket = { fruit: 'apple' };
+var basket = { fruit: 'apple' },
+	observer = observe_evented.observe(basket, {
+		output: {
+			minimalEvents: true
+		}
+	});
 
-var $observer = $.observe(basket, { minimalEvents: true });
-
-$observer
+observer
 	.on('add', function(event){
 		console.log(
 			'A property "' + event.name + '" was created, ' +
@@ -391,23 +299,128 @@ No events were sent for the intermediary states of `basket.fruit` and `basket.ve
 Other options
 -------------------------
 
-`options.batchOnly` If you prefer to work on batched events (see the section below) and do not need them to be triggered individually, set this option to `true`. Only the `batch` and `rawBatch` events will then be triggered. Default: `false`.
+`options.additionalEventTypes` If you need an object observer to return more than the standard change types, namely because you use notifiers, you may provide them to this option as an array. Default: empty array.
 
-`options.eventTypes` An array of enabled event types. Any event whose type is not included in this array will not be triggered. If you want to get events from another type than the standard ones (namely because you use notifiers), you will have to set up this option. Default: `null`.
+`options.multipleObservers` See the dedicated "Create multiple observers on a same object/array" section below. Default: `false`.
 
-`options.noUpdateEvents` Semantically, updating a value in an array is not the same thing as removing it and adding its replacement at the same index. However, the end result is the same. Furthermore, a browser using a shim won't even be able to make the difference. For the sake of consistency, this is why you may set this option to `true` to remove any `update` events triggered on an array and replace them by a `remove` event followed by an `add` event. Default: `false`
+`options.shim` Should you wish to use a shim that does not directly extend Object and Array prototype, you may provide an adapter for it via this option. You must provide an object that has `Array` and `Object` properties which will expose `observe`, `unobserve`, `deliverChangeRecords` and `getNotifier` methods.
 
-`options.shim` Should you wish to use a shim that does not directly extend Object and Array prototype, you may provide an adapter for it via this option. You must provide an object that has `Array` and `Object` properties which will expose `observe` and `unobserve` methods.
+`options.output.batchOnly` If you prefer to work on batched events (see the section below) and do not need them to be triggered individually, set this option to `true`. Only the `batch` and `rawBatch` events will then be triggered. Default: `false`.
 
-`$.observe.defaultOptions` This method lets you modify the default options for all future calls, like for example:
+`options.output.noUpdateEvents` Semantically, updating a value in an array is not the same thing as removing it and adding its replacement at the same index. However, the end result is the same. Furthermore, a browser using a shim won't even be able to make the difference. For the sake of consistency, this is why you may set this option to `true` to remove any `update` events triggered on an array and replace them by a `remove` event followed by an `add` event. Default: `false`
+
+`observe_evented.setDefaultOptions()` This method lets you modify the default options for all future calls, like for example:
 
 ```javascript
-$.observe.defaultOptions({
-	dropValues: true,
-	eventTypes: ['add']
+observe_evented.setDefaultOptions({
+	additionalEventTypes: ['myCustomType1', 'myCustomType2'],
+	output: {
+		dropValues: true,
+		noUpdateEvents: true
+	}
 });
 
-// all observers will now only emit 'add' events without `event.value` being set.
+// all observers created from now on will now only emit events without
+// `event.value` being set, and `update` events will be converted.
+```
+
+Advanced: create multiple observers on a same object/array
+-------------------------
+
+By default, Observe_evented creates only one observer per object/array for simplicity and improved performances, even if you call `observe_evented.observe()` multiple times on it.
+
+That is to say:
+
+```javascript
+var basket = { fruit: 'apple' },
+	observer1 = observe_evented.observe(basket),
+	observer2 = observe_evented.observe(basket);
+
+// this logs `true`
+console.log(observer1 === observer2 ? true : false);
+```
+
+However, please note that when you call `observe_evented.observe()` a second time, the options provided in the first call will be lost and replaced by the options of the second call (or the default options if not provided).
+
+In case you really need to create a second observer on the object/array, for example because you want to work with a different set of options in parallel, you may force this by setting the `multipleObservers` option to `true`.
+
+As a result:
+
+```javascript
+var basket = { fruit: 'apple' },
+	observer1 = observe_evented.observe(basket),
+	observer2 = observe_evented.observe(basket, { multipleObservers: true });
+
+// this logs `false`
+console.log(observer1 === observer2 ? true : false);
+```
+
+Please note that when you use several observers on an object/array, all events will be fired on an observer, and then all events will be fired on the next, etc.
+
+Advanced: the short syntax of .observe()
+-------------------------
+
+Some people might be happy to know that they can actually provide a listener as third argument to `observe_evented.observe()`, that is to say:
+
+```javascript
+var observer = observe_evented.observe(object [, options], callback);
+```
+
+This is equivalent to:
+
+```javascript
+var observer = observe_evented.observe(object [, options]);
+observer.on(null, callback);
+```
+
+Which has for effect that your callback will be called for every single event fired on the observer.
+
+Advanced: pause, resume and remove observers
+-------------------------
+
+When the observer is paused by using its the `disable` method, `Object.unobserve()` is actually called. Its configuration and listeners however are kept in case you ever want to resume observing by calling its `enable` method.
+
+When you call the `destroy` method of the observer, the object/array is unobserved and references to its configuration and listeners are definitively deleted.
+
+When called, the `destroy` method will synchronously deliver any queued events before destruction. If you wish to proceed to the destruction asynchronously at the end of the current microtask, you may call it with `true` as the first argument.
+
+Example:
+
+```javascript
+var basket = { fruit: 'apple' },
+	observer = observe_evented.observe(basket);
+
+observer.on('update', function(event){
+	console.log(
+		'The property "' + event.name + '" was updated, ' +
+		'its value is "' + event.value + '"'
+	);
+});
+
+// triggers an update event
+basket.fruit = 'banana';
+observer.disable();
+// triggers nothing
+basket.fruit = 'mango';
+observer.enable();
+// triggers an update event
+basket.fruit = 'cherry';
+observer.destroy();
+// triggers nothing
+basket.fruit = 'pear';
+```
+
+Advanced: deliverChangeRecords and getNotifier
+-------------------------
+
+These methods are directly proxied by Observe_evented on the currently observed object, without the need for you to provide any arguments :
+
+```javascript
+var basket = { fruit: 'apple' },
+	observer = observe_evented.observe(basket);
+
+observer.deliverChangeRecords();
+observer.getNotifier();
 ```
 
 Advanced : Manage the events in batches
@@ -417,22 +430,18 @@ As you know, events are sent asynchronously and in batches by the browser to Obs
 
 So, sometimes you might find useful to get all events at once in your callback function, instead of having it called with only one event at a time. No problem.
 
-There are two options available : get the batch of atomic events computed by Observe_evented, or the batch of raw events sent by the native Object/Array.observe function.
+You will be able to get the batch of atomic events computed by Observe_evented and the batch of raw events sent by the native Object/Array.observe function.
 
-You can get these respectively by listening to `batch` and `rawBatch` events.
+You can get these by listening to `batch` events.
 
 ```javascript
-var basket = [];
+var basket = [],
+	observer = observe_evented.observe(basket);
 
-var $observer = $.observe(basket);
-
-$observer
-	.on('batch', function(event){
-		console.log(event.value);
-	})
-	.on('rawBatch', function(event){
-		console.log(event.value);
-	});
+observer.on('batch', function(event){
+	console.log(event.value.computed);
+	console.log(event.value.raw);
+});
 
 basket[0] = 'apple';
 basket.push('pear');
@@ -540,16 +549,6 @@ basket.splice(0, 2, 'strawberry');
 ]
 ```
 
-No conflict
--------------------------
-
-Chances are that other libraries or even jQuery are using/will use the `$.observe` and `$.unobserve` namespaces.
-
-You can relocate the methods to `$.oe_observe` and `$.oe_unobserve` by calling `$.observe.noConflict()`.
-You may choose another prefix by calling `$.observe.noConflict('myPrefix')`.
-
-Any previous references of `$.observe` and `$.unobserve` will be restored.
-
 Important notice
 -------------------------
 
@@ -559,9 +558,10 @@ The events will be sent *after* all commands in the current microtask have been 
 This means that when you do:
 
 ```javascript
-var basket = { fruit: 'apple' };
+var basket = { fruit: 'apple' };,
+	observer = observe(basket);
 
-$.observe(basket, 'fruit').on('update', function(event){
+observer.on('update', 'fruit', function(event){
 	console.log('The fruit property was updated, its value changed to ' + event.value + '.');
 	console.log('But its real current value is ' + basket[event.name] + '.');
 });
