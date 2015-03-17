@@ -15,9 +15,7 @@
 		"object",
 		"observe",
 		"observer",
-		"ecmascript7",
-		"jquery-plugin",
-		"ecosystem:jquery"
+		"ecmascript7"
 	],
 	"repository": "https://github.com/louisameline/observe_evented",
 	"bugs": {
