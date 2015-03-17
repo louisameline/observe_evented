@@ -7,7 +7,7 @@ Observe_evented's specialty is to split the batch of changes returned by the nat
 
 Test it on <a href="http://jsfiddle.net/d9w3uaav/5/">this jsFiddle page</a>.
 
-This library has no dependency. It works in Object.observe compatible environments like Node 0.11.13+ and Chrome 36+, or other environments with a shim that will emulate Array/Object.observe.
+This library has no dependency. It works in Object.observe compatible environments like Node 0.11.13+ and Chrome 36+, or other environments with a shim that will emulate Array/Object.observe. For Object.observe, you can checkout [Massimo Artizzu's "Object-observe" shim](https://github.com/MaxArt2501/object-observe).
 
 Object.observe is a proposed feature in the draft of ECMAScript 7.
 As the standard itself may still evolve, this library may change accordingly.
@@ -303,7 +303,7 @@ Other options
 
 `options.multipleObservers` See the dedicated "Create multiple observers on a same object/array" section below. Default: `false`.
 
-`options.shim` Should you wish to use a shim that does not directly extend Object and Array prototype, you may provide an adapter for it via this option. You must provide an object that has `Array` and `Object` properties which will expose `observe`, `unobserve`, `deliverChangeRecords` and `getNotifier` methods.
+`options.shim` Should you wish to use a shim that does not directly extend Object and Array prototype, you may provide an adapter for it via this option. You must provide an object that has `Array` and `Object` properties which will expose `observe`, `unobserve` and `deliverChangeRecords` methods.
 
 `options.output.batchOnly` If you prefer to work on batched events (see the section below) and do not need them to be triggered individually, set this option to `true`. Only the `batch` and `rawBatch` events will then be triggered. Default: `false`.
 
