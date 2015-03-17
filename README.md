@@ -395,7 +395,7 @@ Other options
 
 `options.eventTypes` An array of enabled event types. Any event whose type is not included in this array will not be triggered. If you want to get events from another type than the standard ones (namely because you use notifiers), you will have to set up this option. Default: `null`.
 
-`options.noArrayUpdate` Semantically, updating a value in an array is not the same thing as removing it and adding its replacement at the same index. However, the end result is the same. Furthermore, a browser using a shim won't even be able to make the difference. For the sake of consistency, this is why you may set this option to `true` to remove any `update` events triggered on an array and replace them by a `remove` event followed by an `add` event. Default: `false`
+`options.noUpdateEvents` Semantically, updating a value in an array is not the same thing as removing it and adding its replacement at the same index. However, the end result is the same. Furthermore, a browser using a shim won't even be able to make the difference. For the sake of consistency, this is why you may set this option to `true` to remove any `update` events triggered on an array and replace them by a `remove` event followed by an `add` event. Default: `false`
 
 `options.shim` Should you wish to use a shim that does not directly extend Object and Array prototype, you may provide an adapter for it via this option. You must provide an object that has `Array` and `Object` properties which will expose `observe` and `unobserve` methods.
 
@@ -589,10 +589,4 @@ For more information, read the article linked at the top of this page.
 TODO
 -------------------------
 
-Have the library reviewed by the folks behind the O.o draft.
-
 Write tests. Help is welcome !
-
-See if there is a good shim out there that could be recommended to use alongside with Observe_evented.
-
-Consider a version that does not depend on jQuery if people are asking for it.

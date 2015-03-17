@@ -1,4 +1,4 @@
-/*! Observe_evented 0.1.0 */
+/*! Observe_evented 0.2.0 */
 
 /* 
  * Object.observe and Array.observe made easy.
@@ -7,219 +7,150 @@
  * 
  * https://github.com/louisameline/observe_evented
  */
-(function($){
+(function(global){
 	
 	var defaultOptions = {
-			batchOnly: false,
-			dropValues: false,
-			eventTypes: null,
-			minimalEvents: false,
-			noArrayUpdate: false,
+			additionalEventTypes: [],
+			output: {
+				batchOnly: false,
+				dropValues: false,
+				minimalEvents: false,
+				nameFilter: null,
+				noUpdateEvents: false
+			},
 			shim: null
 		},
-		_observe,
-		observers = [],
-		_unobserve;
+		objectsData = [],
+		standardObjectEventTypes = ['add', 'update', 'delete', 'reconfigure', 'setPrototype'];
 	
-	if($.observe){
-		_observe = $.observe;
-	}
-	if($.unobserve){
-		_unobserve = $.unobserve;
-	}
-	
-	// return the list of observers active on the given object
-	// (and creating this array if it does not exist yet)
-	var _observersList = function(object){
-		
-		var index;
-		$.each(observers, function(i, record){
-			if(object === record.object){
-				index = i;
-				return false;
-			}
-		});
-		
-		if(index === undefined){
+	// this function lets us never do the same calculations twice. Its
+	// output is the computed events.
+	var computeAlgoPath = function(changes, calculations, algoPath){
 			
-			index = observers.length;
+			var events = changes,
+				algoPath_str = '';
 			
-			observers.push({
-				object: object,
-				observers: []
-			});
-		}
-		
-		return observers[index].observers;
-	};
-	
-	/**
-	 * @param {object|array} object
-	 * @param {string|integer|array} optional name The name/index of a
-	 * property/value of `object`, or an array of names/indices
-	 * @param {object} optional options
-	 * @param {function} optional callback
-	 * @return {object} An object that has `on`, `off` and `unobserve`
-	 * properties
-	 */
-	$.observe = function(object, name, options, callback){
-		
-		// MANAGE PARAMETERS
-		
-		// object
-		if(name === undefined){
-			name = null;
-		}
-		// object, options
-		else if(typeof name === 'object' && !$.isArray(name)){
-			callback = options || function(){};
-			options = name;
-			name = null;
-		}
-		// object, callback
-		else if(typeof name === 'function'){
-			callback = name;
-			options = {};
-			name = null;
-		}
-		
-		// options is falsy
-		if(!options){
-			options = {};
-		}
-		// object, name, callback
-		else if(typeof options === 'function'){
-			callback = options;
-			options = {};
-		}
-		
-		// convert name to an array if a string was provided
-		var nameArray = null;
-		if(name !== null){
-			nameArray = (typeof name === 'string') ? [name] : name;
-		}
-		
-		// setup options
-		options = $.extend(true, {}, defaultOptions, options);
-		
-		// SETUP THE OBSERVER AND THE EVENT EMITTER
-		
-		var observer = function(changes){
-			
-			$.each(changes, function(i, change){
+			for(var i = 0; i < algoPath.length; i++){
 				
-				// if the change affected only one property
-				if(change.type !== 'splice'){
+				algoPath_str += algoPath[i];
+				
+				if(calculations[algoPath_str]){
+					events = calculations[algoPath_str];
+				}
+				else {
+					events = algos[algoPath[i]](events);
+					calculations[algoPath_str] = events;
+				}
+			}
+			
+			return events;
+		},
+		algos = {
+			// successive algorithms for events.
+			// turn the raw batch of events into atomic events
+			computeEvents: function(changes){
+				
+				var events = [],
+					object = changes[0].object;
+				
+				for(var i = 0; i < changes.length; i++){
 					
-					// change is immutable, let's copy it
-					var event = $.extend(true, {}, change),
-						arr = [];
+					var change = changes[i];
 					
-					if(isArray){
-						// O.o returns the index as a string !
-						event.name = parseInt(event.name);
-					}
-					
-					if(event.type === 'delete'){
+					// if the change affected only one property
+					if(change.type !== 'splice'){
+						
+						// change is immutable, let's copy it
+						var event = $.extend({}, change),
+							isArray = (object.constructor === Array);
 						
 						if(isArray){
-							// delete foo[0] actually updates its content to null
-							event.type = 'update';
-							event.value = null;
+							// O.o returns the index as a string !
+							event.name = parseInt(event.name);
 						}
-						else {
-							// delete on an object really removes the property.
-							// we'll rename the event to less misleading "remove"
-							event.type = 'remove';
-						}
-					}
-					
-					if(		isArray
-						&&	event.type === 'update'
-						&& options.noArrayUpdate
-					){
-						// forge two add and remove events events
-						arr.push(
-							{
-								object: object,
-								name: event.name,
-								oldValue: event.oldValue,
-								type: 'remove'
-							},
-							{
-								object: object,
-								name: event.name,
-								type: 'add'
+						
+						if(event.type === 'delete'){
+							
+							if(isArray){
+								// delete foo[0] actually updates its content to null
+								event.type = 'update';
+								event.value = null;
 							}
-						);
+							else {
+								// delete on an object really removes the property.
+								// we'll rename the event to less misleading "remove"
+								event.type = 'remove';
+							}
+						}
+						
+						events.push(event);
 					}
+					// the change is a splice : the object is an array and several
+					// changes may have been made with a single function call (push,
+					// splice...). Let's make sure we generate one event for each
+					// change to preserve atomicity.
 					else {
-						arr.push(event);
+						
+						for(var j = 0; j < change.removed.length; j++){
+							
+							// we don't set 'change.index + j' because the indices
+							// actually decrement after every removal
+							var idx = change.index,
+								event = {
+									name: idx,
+									object: object,
+									// value is seen as undefined if it was null, so
+									// we cast it again
+									oldValue: change.removed[j] || null,
+									type: 'remove'
+								};
+							
+							events.push(event);
+						}
+						
+						for(var j = 0; j < change.addedCount; j++){
+							
+							var idx = change.index + j,
+								event = {
+									name: idx,
+									object: object,
+									type: 'add'
+								};
+							
+							events.push(event);
+						}
 					}
-					
-					Array.prototype.push.apply(events, arr);
 				}
-				// the change is a splice : the object is an array and several
-				// changes may have been made with a single function call (push,
-				// splice...). Let's make sure we generate one event for each
-				// change to preserve atomicity.
-				else {
-					
-					$.each(change.removed, function(j, value){
-						
-						// we don't set 'change.index + j' because the indices
-						// actually decrement after every removal
-						var idx = change.index,
-							event = {
-								name: idx,
-								object: object,
-								// value is seen as undefined if it was null, so
-								// we cast it again
-								oldValue: value || null,
-								type: 'remove'
-							};
-						
-						events.push(event);
-					});
-					
-					for(var j = 0; j < change.addedCount; j++){
-						
-						var idx = change.index + j,
-							event = {
-								name: idx,
-								object: object,
-								type: 'add'
-							};
-						
-						events.push(event);
-					};
-				}
-			});
-			
+				
+				return events;
+			},
 			// Set an accurate value property to all add and update events.
 			// Since O.o is "lazy" and does not include the new value in the
 			// changes objects, we have to iterate on all next changes to be
 			// sure that the value is actually the one we have in the object
 			// in its current state.
-			if(!options.dropValues){
+			findValues: function(events){
 				
-				for(var i = 0; i < events.length; i++){
+				var tamperedEvents = $.merge([], events),
+					object = events[0].object;
+				
+				for(var i = 0; i < tamperedEvents.length; i++){
 					
-					var event = events[i];
+					var event = tamperedEvents[i];
 					
 					if(		(event.type === 'add' || event.type === 'update')
 						&&	event.value === undefined
 					){
 						
 						// in the case of an array, the property name is the index
-						if(isArray){
+						if(event.object.constructor === Array){
 							
 							var movingIndex = event.name;
 							
 							// let's iterate on the following events
-							for(var j = i+1; j < events.length; j++){
+							for(var j = i+1; j < tamperedEvents.length; j++){
 								
-								var e = events[j];
+								var e = tamperedEvents[j];
 								
 								// the addition/removal of a value in the array before
 								// our value of interest modifies its index
@@ -257,9 +188,9 @@
 						}
 						else {
 							
-							for(var j = i+1; j < events.length; j++){
+							for(var j = i+1; j < tamperedEvents.length; j++){
 								
-								var e = events[j];
+								var e = tamperedEvents[j];
 								
 								// here we are only concerned about the modifications
 								// on our property
@@ -280,28 +211,28 @@
 						}
 					}
 				}
-			}
-			
-			// note : to do this, we compute the list of events, we do not keep
-			// an older version of the array in memory for comparison
-			if(options.minimalEvents){
+				
+				return tamperedEvents;
+			},
+			minimalEvents: function(events){
 				
 				// let's regroup the changes by targeted value. This will
 				// eventually be an array.
-				var eventsByTarget;
+				var eventsByTarget,
+					isArray = (events[0].object.constructor === Array);
 				
 				if(!isArray){
 					
 					eventsByTarget = {};
 					
-					$.each(events, function(i, event){
+					for(var i = 0; i < events.length; i++){
 						
-						if(!eventsByTarget[event.name]){
-							eventsByTarget[event.name] = [];
+						if(!eventsByTarget[events[i].name]){
+							eventsByTarget[events[i].name] = [];
 						}
 						
-						eventsByTarget[event.name].push(i);
-					});
+						eventsByTarget[events[i].name].push(i);
+					}
 					
 					// let's just keep the event indices in the same format as
 					// arrays : [name, eventIndices] (see below)
@@ -333,13 +264,13 @@
 						// A new value cannot be yet.
 						if(event.type !== 'add'){
 							
-							$.each(eventsByTarget, function(j, targetInfo){
+							for(var j = 0; j < eventsByTarget.length; j++){
 								
-								if(event.name === targetInfo[0][targetInfo[0].length - 1]){
+								if(event.name === eventsByTarget[j][0][eventsByTarget[j][0].length - 1]){
 									ebt_index = j;
-									return false;
+									break;
 								}
-							});
+							}
 						}
 						
 						// if not tracked, track it
@@ -351,29 +282,29 @@
 						// additions and removals force us to register index changes
 						if(event.type === 'add' || event.type === 'remove'){
 							
-							$.each(eventsByTarget, function(j, targetInfo){
+							for(var j = 0; j < eventsByTarget.length; j++){
 								
-								if(targetInfo[0].length){
+								if(eventsByTarget[j][0].length){
 								
-									var lastIndex = targetInfo[0][targetInfo[0].length - 1];
+									var lastIndex = eventsByTarget[j][0][eventsByTarget[j][0].length - 1];
 									
 									if(event.name < lastIndex){
 										
 										if(event.type === 'add'){
-											targetInfo[0].push(lastIndex + 1);
+											eventsByTarget[j][0].push(lastIndex + 1);
 										}
 										else {
-											targetInfo[0].push(lastIndex - 1);
+											eventsByTarget[j][0].push(lastIndex - 1);
 										}
 									}
 									else if(event.name === lastIndex){
 									
 										if(event.type === 'add'){
-											targetInfo[0].push(lastIndex + 1);
+											eventsByTarget[j][0].push(lastIndex + 1);
 										}
 									}
 								}
-							});
+							}
 						}
 						
 						// we are now able to save the new index for our value
@@ -402,16 +333,15 @@
 				
 				// ready to compute
 				var removableEventIndices = [];
-				$.each(eventsByTarget, function(i, target){
+				for(var i = 0; i < eventsByTarget.length; i++){
 					
-					var name = target[0],
-						eventIndices = target[1];
-					
-					var lastEvent = events[eventIndices[eventIndices.length - 1]];
+					var name = eventsByTarget[i][0],
+						eventIndices = eventsByTarget[i][1],
+						lastEvent = events[eventIndices[eventIndices.length - 1]];
 					
 					// if we know that the value was eventually removed
 					if(lastEvent.type === 'remove'){
-					
+						
 						// if there is only one remove event, nothing to do
 						if(eventIndices.length > 1){
 							
@@ -419,9 +349,9 @@
 							// with, any events about it can be ignored
 							if(events[eventIndices[0]].type === 'add'){
 								
-								$.each(eventIndices, function(j, index){
-									removableEventIndices.push(index);
-								});
+								for(var j = 0; j < eventIndices.length; j++){
+									removableEventIndices.push(eventIndices[j]);
+								}
 							}
 							else {
 								
@@ -433,204 +363,546 @@
 						}
 					}
 					// otherwise, the only thing we are interested in is whether
-					// the value already existed or not before all events
+					// the value already existed or not before all events. The
+					// first event will tell us that.
 					else {
-						
-						// the first event tells us that, so we keep it solely
-						for(var j = 1; j < eventIndices.length; j++){
-							removableEventIndices.push(eventIndices[j]);
-						}
 						
 						// for arrays, let's update its name so it reflects the
 						// current index of the value
 						if(isArray){
 							events[eventIndices[0]].name = name;
 						}
+						else {
+							// In the case of objects, the first event might be a
+							// removal, which means that the overall operation was
+							// an update.
+							if(events[eventIndices[0]].type === 'remove'){
+								events[eventIndices[0]].type = 'update';
+							}
+						}
+						
+						// also update the final value if values were computed
+						if(lastEvent.value){
+							events[eventIndices[0]].value = lastEvent.value;
+						}
+						
+						// the other events are of no interest
+						for(var j = 1; j < eventIndices.length; j++){
+							removableEventIndices.push(eventIndices[j]);
+						}
 					}
-				});
+				}
 				
-				// delete events
-				events = $.grep(events, function(val, index){
+				// return an array without the removable events
+				var tamperedEvents = $.grep(events, function(val, index){
 					return $.inArray(index, removableEventIndices) === -1;
 				});
 				
-				// for the remaining events, add the value property for consistency
-				if(!options.dropValues){
-					$.each(events, function(i, event){
-						if(event.type === 'add' || event.type === 'update'){
-							event.value = object[event.name];
-						}
+				if(isArray){
+					tamperedEvents.sort(function(a,b){
+						return a.name > b.name;
 					});
 				}
-			}
-			
-			// we'll emit two events additionaly to the original ones for batch
-			// processing. Using a new array prevents a circular reference
-			var finalEventsStack = [
-				// emit the whole array of atomic events we have computed
-				{
-					object: object,
-					type: 'batch',
-					value: events
-				},
-				// also emit the raw changes object provided by O.o
-				{
-					object: object,
-					type: 'rawBatch',
-					value: changes
-				}
-			];
-			
-			if(!options.batchOnly){
-				$.merge(finalEventsStack, events);
-			}
-			
-			$.each(finalEventsStack, function(i, event){
 				
-				if(		!options.eventTypes
-					||	$.inArray(event.type, options.eventTypes) !== -1
-				){
-					if(nameArray === null || $.inArray(event.name, nameArray) !== -1){
+				return tamperedEvents;
+			},
+			// turn update events into remove+add events
+			noUpdateEvents: function(events){
+				
+				var tamperedEvents = [],
+					object = events[0].object;
+				
+				for(var i = 0; i < events.length; i++){
+					
+					var event = events[i];
+					
+					if(event.type === 'update'){
 						
-						if(callback){
-							callback.call(object, event);
+						tamperedEvents.push(
+							{
+								object: object,
+								name: event.name,
+								oldValue: event.oldValue,
+								type: 'remove'
+							},
+							{
+								object: object,
+								name: event.name,
+								type: 'add'
+							}
+						);
+						
+						// if the value was computed by findValue, keep it
+						if(event.value !== undefined){
+							tamperedEvents[tamperedEvents.length - 1].value = event.value;
 						}
-						
-						observer.$eventEmitter.trigger(event);
+					}
+					else {
+						tamperedEvents.push(event);
 					}
 				}
-			});
+				
+				return tamperedEvents;
+			}
+		},
+		// return the data of observers active on the given object
+		// (and creating this array if it does not exist yet)
+		objectsDataFn = function(object){
+			
+			var index;
+			for(var i = 0; i < objectsData.length; i++){
+				if(object === objectsData[i].object){
+					index = i;
+					break;
+				}
+			}
+			
+			if(index === undefined){
+				
+				index = objectsData.length;
+				
+				var objectData = {
+					callbacks: [],
+					emitter: null,
+					isArray: object.constructor === Array,
+					object: object,
+					observer: null,
+					options: {}
+				};
+				
+				objectData.emitter = new emitter(objectData);
+				
+				objectsData.push(objectData);
+			}
+			
+			return objectsData[index];
+		},
+		// there will be only one observer per object and it will call the
+		// different callbacks set by the user.
+		getObserver = function(){
+			// returned as an anonymous function to have a unique function
+			// per emitter
+			return function(changes){
+				
+				var	object = changes[0].object,
+					objectData = objectsDataFn(object),
+					callbacks = objectData.callbacks,
+					calculations = {};
+				
+				// determine the algoPath
+				var algoPath = ['computeEvents'];
+				if(!objectData.options.output.dropValues){
+					algoPath.push('findValues');
+				}
+				if(objectData.options.output.minimalEvents){
+					algoPath.push('minimalEvents');
+				}
+				if(objectData.options.output.noUpdateEvents){
+					algoPath.push('noUpdateEvents');
+				}
+				
+				// get the event list in the desired format
+				var events = computeAlgoPath(changes, calculations, algoPath),
+					// we'll emit an additional event to the computed ones for batch
+					// processing. Using a new array prevents a circular reference
+					eventsFinal = [
+						{
+							object: object,
+							type: 'batch',
+							value: {
+								raw: changes,
+								computed: events
+							}
+						}
+					];
+				
+				if(!objectData.options.output.batchOnly){
+					$.merge(eventsFinal, events);
+				}
+				
+				for(var i = 0; i < eventsFinal.length; i++){
+					
+					for(var j = 0; j < callbacks.length; j++){
+						
+						// filter on property name
+						if(		callbacks[j].nameFilter === null
+							||	$.inArray(eventsFinal[i].name, callbacks[j].nameFilter) !== -1
+						){
+							
+							// filter on event type
+							if(		callbacks[j].eventTypes === null
+								||	$.inArray(eventsFinal[i].type, callbacks[j].eventTypes) !== -1
+							){
+								callbacks[j].callback.call(object, eventsFinal[i]);
+							}
+						}
+					}
+				}
+			}
+		},
+		emitter = function(objectData){
+			this.objectData = objectData;
 		};
+	
+	emitter.prototype.on = function(eventType, nameFilter, callback){
 		
-		// will allow users to bind listeners for our events
-		observer.$eventEmitter = $({
-			// providing these properties might be useful for debugging
-			object: object,
-			// return name as it was passed (or null if undefined)
-			name: name
+		// eventType
+		if(nameFilter === undefined){
+			nameFilter = null;
+		}
+		// eventType, callback
+		else if(typeof nameFilter === 'function'){
+			callback = nameFilter;
+			nameFilter = null;
+		}
+		
+		// store as an array
+		if(nameFilter && typeof nameFilter === 'string'){
+			nameFilter = [nameFilter];
+		}
+		
+		if(callback){
+			
+			// allow space-separated event types. Store as an array in all cases.
+			if(eventType){
+				eventType = eventType.split(' ');
+			}
+			
+			var index = -1;
+			
+			for(var i = 0; i < this.objectData.callbacks.length; i++){
+				if(callback === this.objectData.callbacks[i].callback){
+					index = i;
+					break;
+				}
+			}
+			
+			// if the callback is already bound
+			if(index !== -1){
+				
+				if(eventType === null){
+					this.objectData.callbacks[i].eventTypes = null;
+				}
+				else {
+					
+					// make sure it's listening on all provided event types
+					for(var j = 0; j < eventType.length; j++){
+						
+						if($.inArray(eventType[j], this.objectData.callbacks[i].eventTypes) === -1){
+							this.objectData.callbacks[i].eventTypes.push(eventType[j]);
+						}
+					}
+				}
+			}
+			else {
+				this.objectData.callbacks.push({
+					callback: callback,
+					eventTypes: eventType,
+					nameFilter: nameFilter
+				});
+			}
+		}
+		else {
+			throw new TypeError('Missing callback parameter');
+		}
+		
+		return this;
+	};
+	emitter.prototype.off = function(eventType, callback){
+		
+		// callback
+		if(eventType && typeof eventType === 'function'){
+			callback = eventType;
+			eventType = null;
+		}
+		
+		if(eventType){
+			eventType = eventType.split(' ');
+		}
+		
+		var callbacks = this.objectData.callbacks,
+			removableCallbackIndices = [];
+		
+		for(var i = 0; i < callbacks.length; i++){
+			
+			if(!callback || callback === callbacks[i].callback){
+				
+				if(eventType){
+					
+					callbacks[i].eventTypes = $.grep(callbacks[i].eventTypes, function(val, index){
+						return $.inArray(val, eventType) === -1;
+					});
+				}
+				
+				// when there are no more events listened, remove
+				if(		!eventType 
+					||	(	callbacks[i].eventTypes
+						&&	callbacks[i].eventTypes.length === 0
+					)
+				){
+					removableCallbackIndices.push(i);
+				}
+			}
+		}
+		
+		this.objectData.callbacks = $.grep(callbacks, function(val, index){
+			return $.inArray(index, removableCallbackIndices) === -1;
 		});
 		
-		// will allow users to easily unobserve
-		observer.$eventEmitter.unobserve = function(){
-			$.unobserve(object, observer);
+		return this;
+	};
+	emitter.prototype.enable = function(){
+		
+		if(!this.objectData.observer){
+			
+			// null does not work as a third argument
+			var	eventTypes = undefined,
+				addEvTp = this.objectData.options.additionalEventTypes;
+			
+			if(!this.objectData.isArray && addEvTp){
+				
+				eventTypes = $.merge([], standardObjectEventTypes);
+				
+				for(var i = 0; i < addEvTp.length; i++){
+					if($.inArray(addEvTp[i], eventTypes) === -1){
+						eventTypes.push(addEvTp[i]);
+					}
+				}
+			}
+			
+			var observer = getObserver();
+			
+			this.objectData.primitive.observe(
+				this.objectData.object,
+				observer,
+				eventTypes
+			);
+			
+			this.objectData.observer = observer;
+		}
+	};
+	emitter.prototype.disable = function(){
+		
+		this.objectData.primitive.unobserve(this.objectData.object, this.objectData.observer);
+		
+		this.objectData.observer = null;
+	};
+	emitter.prototype.destroy = function(asynchronous){
+		
+		var that = this;
+		
+		// remove observer
+		this.disable();
+		
+		var finish = function(){
+			
+			// remove listeners
+			that.off();
+			
+			// delete the data object corresponding to the observer
+			objectsData.splice($.inArray(this.objectData, objectsData), 1);
 		};
 		
-		// store the observer, it might be needed by $.unobserve()
-		_observersList(object).push(observer);
+		if(!asynchronous){
+			
+			// deliver queued changes
+			this.objectData.primitive.deliverChangeRecords(this.objectData.observer);
+			
+			finish();
+		}
+		else {
+			setTimeout(finish, 0);
+		}
+	};
+	
+	/**
+	 * @param {object|array} object
+	 * @param {object} optional options
+	 * @param {function} optional callback
+	 * @return {object} An object that has `on`, `off` and `unobserve`
+	 * properties
+	 */
+	var observe = function(object, options, callback){
 		
+		// observe(object)
+		if(!options){
+			options = {};
+		}
+		// observe(object, callback)
+		else if(typeof options === 'function'){
+			callback = options;
+			options = {};
+		}
 		
-		// START OBSERVING
+		// get any existing data about the current object
+		var objectData = objectsDataFn(object),
+			// save this before we overwrite it
+			oldAdEvTp = objectData.options.additionalEventTypes;
 		
-		var events = [],
-			// not cool but the O.o currently forces this line when we don't want
-			// to bother to call it with .apply()
-			eventTypes = undefined,
-			isArray = $.isArray(object),
-			primitive = isArray ? Array : Object;
+		// (re)set observer options
+		objectData.options = $.extend({}, defaultOptions);
+		$.extend(objectData.options, options);
+		
+		// register the callback if there is one
+		if(callback){
+			objectData.emitter.on(null, callback);
+		}
+		
+		// unobserve the object if the event types differ
+		if(objectData.observer){
+			
+			var differs = false,
+				adEvTp = objectData.options.additionalEventTypes;
+			
+			if(adEvTp.length !== oldAdEvTp.length){
+				differs = true;
+			}
+			else {
+				
+				diff = [];
+				
+				if($.grep(adEvTp, function(eventType){
+					if($.inArray(eventType, oldAdEvTp) == -1){
+						diff.push(eventType);
+					}
+				})); 
+				
+				if(diff.length > 0){
+					differs = true;
+				}
+			}
+			if(differs){
+				objectData.emitter.disable();
+			}
+		}
+		
+		// determine the primitive or shim we'll use
+		var	primitive = objectData.isArray ? Array : Object;
 		
 		if(!primitive.observe){
 			
-			var primitiveName = isArray ? 'Array' : 'Object';
+			var primitiveName = objectData.isArray ? 'Array' : 'Object';
 			
-			if(options.shim && options.shim[primitiveName].observe){
-				primitive = options.shim[primitiveName];
+			if(objectData.options.shim && objectData.options.shim[primitiveName].observe){
+				primitive = objectData.options.shim[primitiveName];
 			}
 			else {
 				throw new TypeError('This environment does not support ' + primitiveName + '.observe');
 			}
 		}
+		objectData.primitive = primitive;
 		
-		// an array of types as third parameter only applies to objects (as far
-		// as the call to O.o is concerned)
-		if(!isArray && options.eventTypes){
-			
-			// if event.value is to be set
-			if(!options.dropValues){
-				
-				// let's not alter the original array
-				eventTypes = $.merge([], options.eventTypes);
-				
-				// we still need all add, update and delete events to compute
-				// event.value. These events will just not trigger them on the
-				// emitter.
-				$.each(['add', 'update', 'delete'], function(i, type){
-					if($.inArray(type, eventTypes) === -1){
-						eventTypes.push(type);
-					}
-				});
-			}
-			else {
-				eventTypes = options.eventTypes;
-				
-				// convert the remove type to its real name
-				if($.inArray('remove', eventTypes) !== -1){
-					eventTypes.push('delete');
+		// start observing if needed
+		if(!objectData.observer){
+			objectData.emitter.enable();
+		}
+		
+		return objectData.emitter;
+	};
+	
+	// allows to change the set of default options
+	var defaultOptions = function(options){
+		defaultOptions = $.extend(defaultOptions, options);
+	};
+	
+	/*! jQuery utils */
+	var $ = {
+		extend:  function extend(target, source) {
+			target = target || {};
+			for (var prop in source) {
+				if (typeof source[prop] === 'object' && source[prop] !== null) {
+					target[prop] = extend(target[prop], source[prop]);
+				} else {
+					target[prop] = source[prop];
 				}
 			}
+			
+			return target;
+		},
+		grep: function (elems, callback, inv) {
+			var retVal, ret = [],
+				i = 0,
+				length = elems.length;
+			inv = !!inv;
+			
+			for (; i < length; i++) {
+				retVal = !!callback(elems[i], i);
+				if (inv !== retVal) {
+					ret.push(elems[i]);
+				}
+			}
+
+			return ret;
+		},
+		inArray: function(elt, arr, from){
+			var len = arr.length >>> 0;
+
+			var from = Number(arguments[2]) || 0;
+			from = (from < 0)
+				? Math.ceil(from)
+				: Math.floor(from);
+			if (from < 0)
+				from += len;
+
+			for (; from < len; from++){
+				if (from in arr &&
+				arr[from] === elt)
+				return from;
+			}
+			return -1;
+		},
+		map: function (elems, callback, arg) {
+			var value, i = 0,
+				length = elems.length,
+				ret = [];
+			
+			// Go through the array, translating each of the items to their
+			if (elems.constructor === Array) {
+				for (; i < length; i++) {
+					value = callback(elems[i], i, arg);
+
+					if (value != null) {
+						ret[ret.length] = value;
+					}
+				}
+				
+				// Go through every key on the object,
+			} else {
+				for (i in elems) {
+					value = callback(elems[i], i, arg);
+
+					if (value != null) {
+						ret[ret.length] = value;
+					}
+				}
+			}
+			
+			// Flatten any nested arrays
+			return [].concat.apply([], ret);
+		},
+		merge: function (first, second) {
+			var l = second.length,
+				i = first.length,
+				j = 0;
+			
+			if (typeof l === "number") {
+				for (; j < l; j++) {
+					first[i++] = second[j];
+				}
+			} else {
+				while (second[j] !== undefined) {
+					first[i++] = second[j++];
+				}
+			}
+			
+			first.length = i;
+			
+			return first;
 		}
-		
-		primitive.observe(
-			object,
-			observer,
-			eventTypes
-		);
-		
-		return observer.$eventEmitter;
 	};
 	
-	// allows to change the set of default options
-	$.observe.defaultOptions = function(options){
-		defaultOptions = $.extend(true, defaultOptions, options);
+	window.observe_evented = {
+		observe: observe,
+		defaultOptions: defaultOptions
 	};
-	
-	// allows to change the set of default options
-	$.observe.noConflict = function(prefix){
-		
-		prefix = prefix || 'oe_';
-		
-		$[prefix + 'observe'] = $.observe;
-		$[prefix + 'unobserve'] = $.unobserve;
-		
-		if(_observe){
-			$.observe = _observe;
-		}
-		if(_unobserve){
-			$.observe = _observe;
-		}
-	};
-	
-	// observer is for internal use
-	$.unobserve = function(object, observer){
-		
-		var observersList = _observersList(object),
-			primitive = $.isArray(object) ? Array : Object,
-			unobserveList;
-		
-		if(observer){
-			// unbind the provided observer
-			unobserveList = [observer];
-		}
-		else {
-			// unbind all observers for the object
-			unobserveList = observersList;
-		}
-		
-		$.each(unobserveList, function(i, obs){
-			
-			// a timeout because there may queued events waiting
-			// for the end of the microtask to be emitted. We'll
-			// wait until this microtask is done to unbind the
-			// listeners
-			setTimeout(function(){
-				// unbind any user listeners for garbage collection
-				obs.$eventEmitter.off();
-			}, 0);
-			
-			// unbind
-			primitive.unobserve(object, obs);
-			
-			// unreference from our listing
-			observersList.splice($.inArray(obs, observersList), 1);
-		});
-	};
-})(jQuery);
+})(window);

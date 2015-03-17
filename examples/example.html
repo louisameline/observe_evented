@@ -28,20 +28,26 @@
 				if(!Object.observe){
 					alert('Your browser does not support Object.observe, this demo cannot work !');
 				}
-
+				
+				// setup
 				var basket1 = { vegetable: 'carrot' },
 					basket2 = ['apple'],
 					options = {
-						// uncomment anytime to test
-						//batchOnly: true,
-						//dropValues: true,
-						//eventTypes: ['add', 'update', 'remove'],
-						//minimalEvents: true,
-						//noArrayUpdate: true
+						additionalEventTypes: [],
+						output: {
+							// uncomment to test
+							//batchOnly: true,
+							//dropValues: true,
+							//minimalEvents: true,
+							//noUpdateEvents: true
+						},
+						shim: null
 					};
-
+				
 				// replace basket1 by basket2 in this line to test on an array instead of an object
-				$.observe(basket1, options)
+				var $observer = observe_evented.observe(basket1, options);
+				
+				$observer
 					.on('add', function(event){
 						show('<span class="green">Added</span> : ' + propOrIndex(event.object) + ' <b>' +
 							 event.name + '</b>, value <b>' + event.value + '</b>'
@@ -58,22 +64,32 @@
 						);
 					})
 					.on('add update remove', function(event){
-						// uncomment to see the regular events
+						// uncomment to see the object representation of regular events
 						//logEvent(event);
 					})
-					.on('batch rawBatch', function(event){
-						// uncomment to see the special batch and rawBatch events
-						//logEvent(event);
+					.on('batch', function(event){
+						// uncomment to see what is returned by the special batch event
+						//logEvent(event.value.computed);
+						//logEvent(event.value.raw);
 					});
-
-
+				
 				// object changes
 				basket1.fruit = 'apple';
 				basket1.fruit = 'strawberry';
 				basket1.vegetable = 'pea';
+				basket1.vegetable = 'bean';
+				$observer.disable();
+				basket1.drink = 'coke';
+				$observer.enable();
 				basket1.meat = 'chicken';
 				delete basket1.meat;
-
+				
+				setTimeout(function(){
+					basket1.drink = 'pepsi';
+					$observer.destroy();
+					basket1.drink = 'sprite';
+				}, 5);
+				
 				// array changes
 				basket2[0] = 'peach';
 				basket2.push('pear');
@@ -82,29 +98,19 @@
 				delete basket2[0];
 				basket2.splice(0, 2, 'strawberry', 'grape');
 				basket2.push('watermellon', 'mango');
-
-
-
-
+				
+				
+				
 				// UTILS
-
 				function show(val){
 					$('#main').append('<div>' + val + '</div>');
 				}
 				function logEvent(val){
-					// hide jQuery properties
-					var eventProps = ['type', 'object', 'name', 'value', 'oldValue'];
-					$.each(val, function(prop, v){
-						if($.inArray(prop, eventProps) === -1){
-							delete val[prop];
-						}
-					});
 					$('#main').append('<pre>' + JSON.stringify(val,null,2) + '</pre>');
 				}
 				function propOrIndex(obj){
 					return $.isArray(obj) ? 'at index' : 'property';
 				}
-				
 			});
 			
 		</script>
