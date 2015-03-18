@@ -57,7 +57,7 @@ observer.off();
 TRIGGER EVENTS ON HANDLERS
 
 ```javascript
-// name may be an property name (or an index for arrays) of the
+// `name` may be an property name (or an index for arrays) of the
 // observed object or an array of property names
 observer.trigger(eventType, name);
 // or, to trigger the event on all values in the object/array:
@@ -502,7 +502,9 @@ basket.fruit = 'pear';
 Advanced: deliverChangeRecords
 -------------------------
 
-This methods is directly proxied by Observe_evented on the currently observed object, without the need for you to provide any arguments :
+This methods is directly proxied by Observe_evented on the currently observed object, without the need for you to provide any arguments.
+
+When calling this method, all queued events will be immediately fired (synchronously), instead of having to wait for the end of the current microtask (asynchronously).
 
 ```javascript
 var basket = { fruit: 'apple' },
