@@ -15,7 +15,7 @@ You can read more about it [here](http://www.html5rocks.com/en/tutorials/es7/obs
 
 NOTE: examples on this page may produce different results if a shim is used instead of a natively compatible browser.
 
-Basic usage
+Quick reference guide
 -------------------------
 
 CREATE AN OBSERVER
@@ -54,6 +54,34 @@ observer.off(eventType);
 observer.off();
 ```
 
+TRIGGER EVENTS ON HANDLERS
+
+```javascript
+// name may be an property name (or an index for arrays) of the
+// observed object or an array of property names
+observer.trigger(eventType, name);
+// or, to trigger the event on all values in the object/array:
+observer.trigger(eventType);
+// or directly provide an array of events
+observer.trigger(events);
+
+// example of the last syntax:
+observer.trigger([
+	{
+		name: 'fruit',
+		type: 'update',
+		object: myArray,
+		oldValue: 'fake event'
+	},
+	{
+		name: 'vegetable',
+		type: 'add',
+		object: myArray
+	}
+]);
+
+```
+
 PAUSE AN OBSERVER
 
 ```javascript
@@ -87,6 +115,24 @@ EVENTS have these properties:
 ```
 
 and their types are usually `add`, `update` or `remove`.
+
+OPTIONS
+
+See the options section for full reference.
+
+```javascript
+var options = {
+	additionalEventTypes: [],
+	multipleObservers: false,
+	shim: null,
+	output: {
+		batchOnly: false,
+		dropValues: false,
+		minimalEvents: false,
+		noUpdateEvents: false
+	}
+}
+```
 
 Basic examples
 -------------------------
@@ -202,7 +248,50 @@ basket.drink = 'coke';
 
 Please note that this second argument, while *technically* working on arrays too, will probably not produce the result you would expect and will be useless to most people.
 
-Observe multiple objects or arrays with a single function
+Data-binding with Observe_evented
+-------------------------
+
+One of the ways to use the power of Object.observe is for data-binding. As soon as your object/array changes, you might want to reflect that change in the DOM. Here is an example with the jQuery syntax:
+
+```javascript
+var basket = {},
+	observer = observe_evented.observe(basket);
+
+observer.on('add', function(event){
+	$('#myDiv').append(event.value + ' was added to the basket. ')
+});
+
+// these will be listed on our web page
+basket.fruit = 'apple';
+basket.vegetable = 'carrot';
+basket.drink = 'coke';
+```
+
+Great ! But sometimes you will have objects/arrays that will have been populated before the observer was set up:
+
+```javascript
+// the basket is already full of goods
+var basket = {
+		fruit: 'apple',
+		vegetable: 'carrot',
+		drink: 'coke'
+	},
+	observer = observe_evented.observe(basket);
+
+// Our existing goods will not be listed in the page as they were
+// added to the basket before this listener is bound
+observer.on('add', function(event){
+	$('#myDiv').append(event.value + ' was added to the basket. ')
+});
+```
+
+To solve this and initialize your page correctly, after you bound your handler with `observer.on()`, just fire it by triggering "fake" `add` events on every property of the basket:
+
+```javascript
+observer.trigger('add');
+```
+
+Observe multiple objects or arrays from a single function
 -------------------------
 
 Just use a single handler on multiple observers:

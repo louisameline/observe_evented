@@ -1,4 +1,4 @@
-/*! Observe_evented 0.2.1 */
+/*! Observe_evented 0.2.2 */
 
 /* 
  * Object.observe and Array.observe made easy.
@@ -562,12 +562,17 @@
 			
 			return objectData.emitter;
 		},
-		observer = function(objectData, changes){
+		observer = function(objectData, changes, computed){
 			
 			var callbacks = objectData.callbacks,
 				// determine the algoPath
-				algoPath = ['computeEvents'];
+				algoPath = [];
 			
+			// if the changes were already computed into events (happens when
+			// emitter.trigger() is used), skip the first algo
+			if(!computed){
+				algoPath.push('computeEvents');
+			}
 			if(!objectData.options.output.dropValues){
 				algoPath.push('findValues');
 			}
@@ -721,6 +726,50 @@
 		this.objectData.callbacks = $.grep(callbacks, function(val, index){
 			return $.inArray(index, removableCallbackIndices) === -1;
 		});
+		
+		return this;
+	};
+	// the signature of this may also be .trigger(events)
+	emitter.prototype.trigger = function(eventType, name){
+		
+		var events = [];
+		if(typeof eventType === 'string'){
+			
+			if(name === undefined){
+				
+				name = [];
+				if(this.objectData.isArray){
+					
+					for(var i = 0; i < this.objectData.object.length; i++){
+						name.push(i);
+					}
+				}
+				else {
+					for(key in this.objectData.object){
+						name.push(key);
+					}
+				}
+			}
+			else if(typeof name !== 'object'){
+				name = [name];
+			}
+			
+			for(var i = 0; i < name.length; i++){
+				
+				events.push({
+					name: name[i],
+					object: this.objectData.object,
+					type: eventType,
+					// placeholder for update events
+					oldValue: null
+				});
+			}
+		}
+		else {
+			events = eventType;
+		}
+		
+		observer(this.objectData, events, true);
 		
 		return this;
 	};

@@ -49,7 +49,7 @@
 					},
 					// replace basket1 by basket2 in this line to test on
 					// an array instead of an object
-					basket = basket1;
+					basket = basket2;
 				
 				// start observing
 				var observer = observe_evented.observe(basket, options);
@@ -95,7 +95,8 @@
 				basket2.splice(0, 2, 'strawberry', 'grape');
 				basket2.push('watermellon', 'mango');
 				
-				
+				// as this call is synchronous, events will appear before the other ones
+				//observer.trigger('add');
 				
 				
 				// UTILS
