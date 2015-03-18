@@ -1,4 +1,4 @@
-/*! Observe_evented 0.2.2 */
+/*! Observe_evented 0.2.3 */
 
 /* 
  * Object.observe and Array.observe made easy.
