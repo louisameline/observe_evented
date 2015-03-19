@@ -1,6 +1,6 @@
 {
 	"name": "observe_evented",
-	"version": "0.2.3",
+	"version": "0.2.4",
 	"description": "Object.observe and Array.observe made easy",
 	"author": {
 		"name": "Louis AMELINE",
@@ -15,6 +15,8 @@
 		"object",
 		"observe",
 		"observer",
+		"event",
+		"evented",
 		"ecmascript7"
 	],
 	"repository": "https://github.com/louisameline/observe_evented",
