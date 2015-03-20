@@ -44,6 +44,9 @@ observer.off(handler);
 // or, to stop the listener only for a given event type:
 // (note: space-separated event types is also possible)
 observer.off(eventType, handler);
+
+// Note: queued events for the current object will immediately
+// (ie synchronously) be emitted when you remove a listener.
 ```
 
 or, to remove several listeners:
@@ -55,8 +58,6 @@ observer.off(eventType);
 // or, to stop all listeners of the observer altogether:
 observer.off();
 ```
-
-Note: queued events for the current object will immediately (ie synchronously) be emitted when you remove a listener.
 
 TRIGGER EVENTS ON HANDLERS
 
