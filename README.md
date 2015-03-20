@@ -13,6 +13,8 @@ Object.observe is a proposed feature in the draft of ECMAScript 7.
 As the standard itself may still evolve, this library may change accordingly.
 You can read more about it [here](http://www.html5rocks.com/en/tutorials/es7/observe/).  
 
+Available under MIT license on [GitHub](https://github.com/louisameline/observe_evented) and [Npm](https://www.npmjs.com/package/observe_evented).
+
 NOTE: examples on this page may produce different results if a shim is used instead of a natively compatible browser.
 
 Quick reference guide
@@ -53,6 +55,8 @@ observer.off(eventType);
 // or, to stop all listeners of the observer altogether:
 observer.off();
 ```
+
+Note: queued events for the current object will immediately (ie synchronously) be emitted when you remove a listener.
 
 TRIGGER EVENTS ON HANDLERS
 
@@ -213,7 +217,7 @@ basket.push('strawberry', 'coconut');
 basket.splice(0, 2, 'cherry', 'mango');
 ```
 
-A special note about the `delete basket[0];` command : as this effectively sets the value of `basket[0]` to `null` and does not actually remove the cell at index 0, it is an `update` event that will be triggered with `event.value = null`. Use the `splice` method to actually remove values from an array and consider stop using `delete` with arrays.
+A special note about the `delete basket[0];` command : as this effectively sets the value of `basket[0]` to `null` and does not actually remove the cell at index 0, it is an `update` event that will be triggered with `event.value == null`. Use the `splice` method to actually remove values from an array and consider stop using `delete` with arrays.
 
 Observe a specific property of an object
 -------------------------
@@ -300,10 +304,8 @@ Just use a single handler on multiple observers:
 var basket1 = [],
 	basket2 = {},
 	myFunction = function(event){
-		if(event.type === 'add'){
-			var nb = (event.object.constructor === Array) ? 1 : 2;
-			console.log('A ' + event.value + ' was added to basket number ' + nb + ' ! ');
-		}
+		var nb = (event.object.constructor === Array) ? 1 : 2;
+		console.log('A ' + event.value + ' was added to basket number ' + nb + ' ! ');
 	};
 
 var observer1 = observe_evented.observe(basket1),
@@ -321,7 +323,7 @@ Event types
 
 By default, the events sent by Observe_evented can be of the following types :
 
-`add`, `update`, `remove`, `batch`, `rawBatch`, `reconfigure`, `setPrototype`
+`add`, `update`, `remove`, `batch`, `reconfigure`, `setPrototype`
 
 Notifiers also let you create more event types (read the article linked at the top of this page).
 
@@ -377,7 +379,7 @@ delete basket.meat;
 // Logged :
 //
 // The property "fruit" was updated, its value is "cherry"
-// A property "vegetable" was created, its value is "pea"
+// A property "vegetable" was added, its value is "pea"
 ```
 
 As you can see, Observe_evented sends events as if the object went directly from its original state to its final one, that is to say :  
@@ -394,9 +396,9 @@ Other options
 
 `options.shim` Should you wish to use a shim that does not directly extend Object and Array prototype, you may provide an adapter for it via this option. You must provide an object that has `Array` and `Object` properties which will expose `observe`, `unobserve` and `deliverChangeRecords` methods.
 
-`options.output.batchOnly` If you prefer to work on batched events (see the section below) and do not need them to be triggered individually, set this option to `true`. Only the `batch` and `rawBatch` events will then be triggered. Default: `false`.
+`options.output.batchOnly` If you prefer to work on batched events (see the section below) and do not need them to be triggered individually, set this option to `true`. Only the `batch` events will then be triggered. Default: `false`.
 
-`options.output.noUpdateEvents` Semantically, updating a value in an array is not the same thing as removing it and adding its replacement at the same index. However, the end result is the same. Furthermore, a browser using a shim won't even be able to make the difference. For the sake of consistency, this is why you may set this option to `true` to remove any `update` events triggered on an array and replace them by a `remove` event followed by an `add` event. Default: `false`
+`options.output.noUpdateEvents` Semantically, updating a value in an array/object is not the same thing as removing it and adding its replacement at the same index/key. However, the end result is the same. Furthermore, a browser using a shim won't even be able to make the difference. For the sake of consistency, this is why you may set this option to `true` to prevent `update` events and replace them by a `remove` event followed by an `add` event. Default: `false`
 
 `observe_evented.setDefaultOptions()` This method lets you modify the default options for all future calls, like for example:
 
@@ -499,6 +501,8 @@ observer.destroy();
 basket.fruit = 'pear';
 ```
 
+Note: since the listener called by `Object.observe` is actually not the same before disabling and after enabling again, the events are coming to your handlers in two distinct batches.
+
 Advanced: deliverChangeRecords
 -------------------------
 
@@ -544,7 +548,8 @@ basket.splice(0, 2, 'strawberry');
 ...will log:
 
 ```javascript
-// Note: "object" has been collapsed, its value is ["strawberry", "apple", "pear"] all along.
+// Note: "object" has been collapsed, its value is ["strawberry", "apple", "pear"]
+// all along.
 
 [
   {
@@ -642,8 +647,8 @@ basket.splice(0, 2, 'strawberry');
 Important notice
 -------------------------
 
-Events are sent asynchronously by the Object/Array.observe methods and this cannot be changed. 
-The events will be sent *after* all commands in the current microtask have been run.
+Events are sent asynchronously by the Object/Array.observe methods unless you call the `deliverChangeRecords` method.  
+This means that events will be sent *after* all commands in the current microtask have been run.
 
 This means that when you do:
 
@@ -675,8 +680,3 @@ But its real current value is strawberry.
 That also explains why `event.object` reflects the state of the object as it is after all changes have been made.
 
 For more information, read the article linked at the top of this page.
-
-TODO
--------------------------
-
-Write tests. Help is welcome !

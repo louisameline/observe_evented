@@ -1,4 +1,4 @@
-/*! Observe_evented 0.2.4 */
+/*! Observe_evented 0.2.5 */
 
 /* 
  * Object.observe and Array.observe made easy.
@@ -701,6 +701,9 @@
 		var callbacks = this.objectData.callbacks,
 			removableCallbackIndices = [];
 		
+		// deliver queued changes
+		this.deliverChangeRecords();
+		
 		for(var i = 0; i < callbacks.length; i++){
 			
 			if(!callback || callback === callbacks[i].callback){
@@ -723,9 +726,12 @@
 			}
 		}
 		
-		this.objectData.callbacks = $.grep(callbacks, function(val, index){
-			return $.inArray(index, removableCallbackIndices) === -1;
-		});
+		if(removableCallbackIndices.length > 0){
+			
+			this.objectData.callbacks = $.grep(callbacks, function(val, index){
+				return $.inArray(index, removableCallbackIndices) === -1;
+			});
+		}
 		
 		return this;
 	};
@@ -840,13 +846,33 @@
 	};
 	// proxy the deliverChangeRecords and getNotifier methods
 	emitter.prototype.deliverChangeRecords = function(){
-		this.objectData.primitive.deliverChangeRecords(this.objectData.observer);
+		
+		var fn = Object.deliverChangeRecords;
+		
+		if(!fn){
+			if(this.objectData.options.shim.Object){
+				fn = this.objectData.options.shim.Object.deliverChangeRecords;
+			}
+			
+			if(!fn){
+				throw new TypeError('This environment does not support Object.deliverChangeRecords');
+			}
+		}
+		
+		fn(this.objectData.observer);
 	};
 	
 	/*! jQuery utils */
 	var $ = {
 		extend:  function extend(target, source) {
-			target = target || {};
+			
+			var isArray = (source.constructor === Array);
+			
+			target = target || (isArray ? [] : {});
+			
+			if (isArray) {
+				target = $.merge([], source);
+			}
 			for (var prop in source) {
 				if (typeof source[prop] === 'object' && source[prop] !== null) {
 					target[prop] = extend(target[prop], source[prop]);
@@ -945,7 +971,7 @@
 	};
 	
 	if(typeof exports !== 'undefined'){
-		if(typeof modules !== 'undefined' && module.exports){
+		if(typeof module !== 'undefined' && module.exports){
 			exports = module.exports = observe_evented;
 		}
 		exports.observe_evented = observe_evented;

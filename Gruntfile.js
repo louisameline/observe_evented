@@ -1,6 +1,17 @@
 module.exports = function (grunt) {
 
 	grunt.initConfig({
+		node_tap: {
+		  default_options: {
+			  options: {
+				  outputType: 'failures',
+				  outputTo: 'console'
+			  },
+			  files: {
+				  'test': ['./test/test.js']
+			  }
+		  }
+		},
 		uglify: {
 			options: {
 				compress: true,
@@ -14,7 +25,8 @@ module.exports = function (grunt) {
 		}
 	});
 	
+	grunt.loadNpmTasks('grunt-node-tap');
 	grunt.loadNpmTasks('grunt-contrib-uglify');
 	
-	grunt.registerTask('default', ['uglify']);
+	grunt.registerTask('default', ['node_tap', 'uglify']);
 };
