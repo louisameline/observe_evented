@@ -785,8 +785,7 @@
 		
 		if(!this.objectData.observer){
 			
-			// null does not work as a third argument
-			var	eventTypes = undefined,
+			var	eventTypes,
 				addEvTp = this.objectData.options.additionalEventTypes;
 			
 			if(!this.objectData.isArray && addEvTp){
