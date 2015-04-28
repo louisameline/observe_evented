@@ -1,4 +1,4 @@
-/*! Observe_evented 0.2.5 */
+/*! Observe_evented 0.2.6 */
 
 /* 
  * Object.observe and Array.observe made easy.
@@ -456,19 +456,19 @@
 		/**
 		 * @param {object|array} object
 		 * @param {object} optional options
-		 * @param {function} optional callback
+		 * @param {function} optional handler
 		 * @return {object} An object that has `on`, `off` and `unobserve`
 		 * properties
 		 */
-		observe = function(object, options, callback){
+		observe = function(object, options, handler){
 			
 			// observe(object)
 			if(!options){
 				options = {};
 			}
-			// observe(object, callback)
+			// observe(object, handler)
 			else if(typeof options === 'function'){
-				callback = options;
+				handler = options;
 				options = {};
 			}
 			
@@ -481,7 +481,7 @@
 			if(objectsData.length === 0 || options.multipleObservers){
 				
 				objectData = {
-					callbacks: [],
+					handlers: [],
 					emitter: null,
 					isArray: object.constructor === Array,
 					object: object,
@@ -505,9 +505,9 @@
 			objectData.options = $.extend({}, defaultOptions);
 			$.extend(objectData.options, options);
 			
-			// register the callback if there is one
-			if(callback){
-				objectData.emitter.on(null, callback);
+			// register the handler if there is one
+			if(handler){
+				objectData.emitter.on(null, handler);
 			}
 			
 			// in case the observer existed : unobserve if the event
@@ -564,7 +564,7 @@
 		},
 		observer = function(objectData, changes, computed){
 			
-			var callbacks = objectData.callbacks,
+			var handlers = objectData.handlers,
 				// determine the algoPath
 				algoPath = [];
 			
@@ -602,27 +602,38 @@
 				$.merge(eventsFinal, events);
 			}
 			
-			for(var j = 0; j < eventsFinal.length; j++){
+			for(var i = 0; i < eventsFinal.length; i++){
 				
-				for(var k = 0; k < callbacks.length; k++){
+				for(var j = 0; j < handlers.length; j++){
 					
 					// filter on property name
-					if(		callbacks[k].nameFilter === null
-						||	$.inArray(eventsFinal[j].name, callbacks[k].nameFilter) !== -1
+					if(		handlers[j].nameFilter === null
+						||	$.inArray(eventsFinal[i].name, handlers[j].nameFilter) !== -1
 					){
 						
 						// filter on event type
-						if(		callbacks[k].eventTypes === null
-							||	$.inArray(eventsFinal[j].type, callbacks[k].eventTypes) !== -1
-						){
-							callbacks[k].callback.call(objectData.object, eventsFinal[j]);
+						var ok = false;
+						
+						if(handlers[j].eventTypes === null){
+							ok = true;
+						}
+						else {
+							for(var k = 0; k < handlers[j].eventTypes.length; k++){
+								if(handlers[j].eventTypes[k][0] === eventsFinal[i].type){
+									ok = true;
+								}
+							}
+						}
+						
+						if(ok){
+							handlers[j].handler.call(objectData.object, eventsFinal[i]);
 						}
 					}
 				}
 			}
 		};
 	
-	emitter.prototype.on = function(eventType, nameFilter, callback){
+	emitter.prototype.on = function(eventTypes, nameFilter, handler){
 		
 		// eventType
 		if(nameFilter === undefined){
@@ -630,7 +641,7 @@
 		}
 		// eventType, callback
 		else if(typeof nameFilter === 'function'){
-			callback = nameFilter;
+			handler = nameFilter;
 			nameFilter = null;
 		}
 		
@@ -639,97 +650,139 @@
 			nameFilter = [nameFilter];
 		}
 		
-		if(callback){
+		if(handler){
 			
 			// allow space-separated event types. Store as an array in all cases.
-			if(eventType){
-				eventType = eventType.split(' ');
+			if(eventTypes){
+				
+				eventTypes = eventTypes.split(' ');
+				
+				// allow namespaces
+				for(var i = 0; i < eventTypes.length; i++){
+					eventTypes[i] = eventTypes[i].split('.');
+				}
 			}
 			
 			var index = -1;
 			
-			for(var i = 0; i < this.objectData.callbacks.length; i++){
-				if(callback === this.objectData.callbacks[i].callback){
+			for(var i = 0; i < this.objectData.handlers.length; i++){
+				if(handler === this.objectData.handlers[i].handler){
 					index = i;
 					break;
 				}
 			}
 			
-			// if the callback is already bound
+			// if the handler is already bound
 			if(index !== -1){
 				
-				if(eventType === null){
-					this.objectData.callbacks[i].eventTypes = null;
+				if(eventTypes === null){
+					this.objectData.handlers.eventTypes = null;
 				}
 				else {
 					
-					// make sure it's listening on all provided event types
-					for(var j = 0; j < eventType.length; j++){
+					// make sure it's listening on all provided event types.
+					for(var i = 0; i < eventTypes.length; i++){
 						
-						if($.inArray(eventType[j], this.objectData.callbacks[i].eventTypes) === -1){
-							this.objectData.callbacks[i].eventTypes.push(eventType[j]);
+						var found = false;
+						for(var j = 0; j < this.objectData.handlers[j].eventTypes.length; j++){
+							
+							if(eventTypes[i][0] === this.objectData.handlers[j].eventTypes[j][0]){
+								found = true;
+								break;
+							}
+						}
+						
+						if(!found){
+							this.objectData.handlers[j].eventTypes.push(eventTypes[i]);
 						}
 					}
 				}
 			}
 			else {
-				this.objectData.callbacks.push({
-					callback: callback,
-					eventTypes: eventType,
+				this.objectData.handlers.push({
+					handler: handler,
+					eventTypes: eventTypes,
 					nameFilter: nameFilter
 				});
 			}
 		}
 		else {
-			throw new TypeError('Missing callback parameter');
+			throw new TypeError('Missing handler parameter');
 		}
 		
 		return this;
 	};
-	emitter.prototype.off = function(eventType, callback){
+	emitter.prototype.off = function(eventTypes, handler){
 		
-		// callback
-		if(eventType && typeof eventType === 'function'){
-			callback = eventType;
-			eventType = null;
+		// handler
+		if(eventTypes && typeof eventTypes === 'function'){
+			handler = eventTypes;
+			eventTypes = null;
 		}
 		
-		if(eventType){
-			eventType = eventType.split(' ');
+		if(eventTypes){
+			eventTypes = eventTypes.split(' ');
+			
+			for(var i = 0; i < eventTypes.length; i++){
+				eventTypes[i] = eventTypes[i].split('.');
+			}
 		}
 		
-		var callbacks = this.objectData.callbacks,
-			removableCallbackIndices = [];
+		var handlers = this.objectData.handlers,
+			removableHandlerIndices = [];
 		
 		// deliver queued changes
 		this.deliverChangeRecords();
 		
-		for(var i = 0; i < callbacks.length; i++){
+		for(var i = 0; i < handlers.length; i++){
 			
-			if(!callback || callback === callbacks[i].callback){
+			if(!handler || handler === handlers[i].handler){
 				
-				if(eventType){
+				if(eventTypes){
 					
-					callbacks[i].eventTypes = $.grep(callbacks[i].eventTypes, function(val, index){
-						return $.inArray(val, eventType) === -1;
-					});
+					handlers[i].eventTypes = $.grep(
+						handlers[i].eventTypes,
+						function(boundEventType, _){
+						
+							var removable = false;
+							
+							for(var j = 0; j < eventTypes.length; j++){
+								
+								// filter on event name
+								if(		eventTypes[j][0] === ''
+									||	eventTypes[j][0] === boundEventType[0]
+								){
+									
+									// filter on namespace
+									if(		!eventTypes[j][1]
+										||	eventTypes[j][1] === boundEventType[1]
+									){
+										removable = true;
+									}
+								}
+							}
+							
+							return !removable;
+						}
+					);
 				}
 				
-				// when there are no more events listened, remove
-				if(		!eventType 
-					||	(	callbacks[i].eventTypes
-						&&	callbacks[i].eventTypes.length === 0
+				// if eventTypes was null or if there are no more events listened to,
+				// remove
+				if(		!eventTypes 
+					||	(	handlers[i].eventTypes
+						&&	handlers[i].eventTypes.length === 0
 					)
 				){
-					removableCallbackIndices.push(i);
+					removableHandlerIndices.push(i);
 				}
 			}
 		}
 		
-		if(removableCallbackIndices.length > 0){
+		if(removableHandlerIndices.length > 0){
 			
-			this.objectData.callbacks = $.grep(callbacks, function(val, index){
-				return $.inArray(index, removableCallbackIndices) === -1;
+			this.objectData.handlers = $.grep(handlers, function(val, index){
+				return $.inArray(index, removableHandlerIndices) === -1;
 			});
 		}
 		

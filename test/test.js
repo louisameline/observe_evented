@@ -259,8 +259,11 @@ test('batchOnly and multipleObservers options', function(t){
 // test 6
 var results_6 = {
 		onAddCount: 0,
+		onAddNamespacedCount: 0,
 		onUpdateCount: 0,
+		onUpdateNamespacedCount: 0,
 		onRemoveCount: 0,
+		onRemoveNamespacedCount: 0,
 		onBatchCount: 0,
 		spec: 0
 	},
@@ -274,12 +277,21 @@ observer_6
 	.on('add', function(event){
 		results_6.onAddCount++;
 	})
+	.on('add.ns', function(event){
+		results_6.onAddNamespacedCount++;
+	})
 	.on('update', function(event){
 		results_6.onUpdateCount++;
+	})
+	.on('update.ns', function(event){
+		results_6.onUpdateNamespacedCount++;
 	})
 	.on('update', 'fruit', specHandler)
 	.on('remove', function(event){
 		results_6.onRemoveCount++;
+	})
+	.on('remove.ns', function(event){
+		results_6.onRemoveNamespacedCount++;
 	});
 
 basket_6.fruit = 'banana';
@@ -294,8 +306,17 @@ basket_6.fruit = 'cherry';
 basket_6.vegetable = 'carrot';
 
 observer_6.off('update', specHandler);
+observer_6.off('add.ns');
 
 basket_6.fruit = 'lemon';
+
+basket_6.tool = 'hammer';
+
+observer_6.off('.ns');
+
+delete basket_6.tool;
+
+basket_6.fruit = 'strawberry';
 
 observer_6.off('add');
 
@@ -306,14 +327,17 @@ observer_6.destroy();
 
 delete basket_6.fruit;
 
-test('enable, disable, destroy, property filter, specific and global unbinding', function(t){
+test('enable, disable, destroy, property filter, specific, namespaced and global unbinding', function(t){
 	
-	t.plan(4);
+	t.plan(7);
 	
 	setTimeout(function(){
 		t.equal(results_6.spec, 2, 'specific handler');
-		t.equal(results_6.onUpdateCount, 4, '4 update events');
-		t.equal(results_6.onAddCount, 1, '1 add event');
-		t.equal(results_6.onRemoveCount, 0, '0 remove events');
+		t.equal(results_6.onUpdateCount, 5, '5 update events');
+		t.equal(results_6.onUpdateNamespacedCount, 3, '3 update events');
+		t.equal(results_6.onAddCount, 2, '2 add events');
+		t.equal(results_6.onAddNamespacedCount, 1, '1 add namespaced event');
+		t.equal(results_6.onRemoveCount, 1, '1 remove event');
+		t.equal(results_6.onRemoveNamespacedCount, 0, '0 remove namespaced events');
 	}, 0);
 });

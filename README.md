@@ -30,11 +30,12 @@ var observer = observe_evented.observe(object [, options]);
 LISTEN TO CHANGES
 
 ```javascript
-// `eventType` is one event type or several space-separated event types.
+// `eventType` is one event type or several space-separated event types,
+// which may be namespaced (see below).
 // `name` is optional, to filter the changes on a property name. It may be a
 // string or an array of strings.
-// `callback` is called at each change with a single event as first argument.
-observer.on(eventType [, name] , callback);
+// `handler` is called at each change with a single event as first argument.
+observer.on(eventType [, name] , handler);
 ```
 
 REMOVE A LISTENER
@@ -42,7 +43,8 @@ REMOVE A LISTENER
 ```javascript
 observer.off(handler);
 // or, to stop the listener only for a given event type:
-// (note: space-separated event types is also possible)
+// (note: space-separated event types is also possible and
+// namespaces as well, see below)
 observer.off(eventType, handler);
 
 // Note: queued events for the current object will immediately
@@ -57,6 +59,18 @@ or, to remove several listeners:
 observer.off(eventType);
 // or, to stop all listeners of the observer altogether:
 observer.off();
+```
+
+USING NAMESPACES
+
+```javascript
+// namespaces are supported in the jQuery fashion:
+observer.on('eventType.mynamespace', handler);
+
+// to unbind only a specific event type namespaced handler:
+observer.off('eventType.mynamespace');
+// or, to remove any type event type handler having this namespace:
+observer.off('.mynamespace');
 ```
 
 TRIGGER EVENTS ON HANDLERS
@@ -455,17 +469,17 @@ Advanced: the short syntax of .observe()
 Some people might be happy to know that they can actually provide a listener as third argument to `observe_evented.observe()`, that is to say:
 
 ```javascript
-var observer = observe_evented.observe(object [, options], callback);
+var observer = observe_evented.observe(object [, options], handler);
 ```
 
 This is equivalent to:
 
 ```javascript
 var observer = observe_evented.observe(object [, options]);
-observer.on(null, callback);
+observer.on(null, handler);
 ```
 
-Which has for effect that your callback will be called for every single event fired on the observer.
+Which has for effect that your handler will be called for every single event fired on the observer.
 
 Advanced: pause, resume and remove observers
 -------------------------
@@ -523,7 +537,7 @@ Advanced : Manage the events in batches
 
 As you know, events are sent asynchronously and in batches by the browser to Observe_evented. If you didn't know, read the notice section below as it's something you must understand to avoid surprises.
 
-So, sometimes you might find useful to get all events at once in your callback function, instead of having it called with only one event at a time. No problem.
+So, sometimes you might find useful to get all events at once in your handler function, instead of having it called with only one event at a time. No problem.
 
 You will be able to get the batch of atomic events computed by Observe_evented and the batch of raw events sent by the native Object/Array.observe function.
 
