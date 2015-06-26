@@ -1,9 +1,9 @@
-/*! Observe_evented 0.2.6 */
+/*! Observe_evented 0.2.7 */
 
 /* 
  * Object.observe and Array.observe made easy.
  * Developped by Louis AMELINE under the MIT license http://opensource.org/licenses/MIT
- * Released on 2015-03-17
+ * Released on 2015-06-26
  * 
  * https://github.com/louisameline/observe_evented
  */
